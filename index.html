@@ -6,10 +6,10 @@
 <meta name="theme-color" content="#2f7d4f">
 <title>Mis Plantas</title>
 <style>
-:root{--bg:#f3f6f1;--card:#fff;--tx:#1d2b1f;--mut:#6b7a6d;--ac:#2f7d4f;--ok:#d9f0e2;--bd:#dce5d9}
-@media(prefers-color-scheme:dark){:root{--bg:#121813;--card:#1c241e;--tx:#e8efe9;--mut:#93a395;--ac:#4fae79;--ok:#1f3a2a;--bd:#2b372d}}
+:root{color-scheme:light;--bg:#f6efe0;--card:#fffdf8;--tx:#1d2b1f;--mut:#6b7a6d;--ac:#2f7d4f;--ok:#d9f0e2;--bd:#e6dcc6}
 *{box-sizing:border-box}[hidden]{display:none!important}
 body{margin:0;font:16px -apple-system,system-ui,sans-serif;background:var(--bg);color:var(--tx);padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+body::before{content:"";position:fixed;top:0;left:0;right:0;bottom:0;z-index:-1;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-40 -40 280 300'%3E%3Cg transform='rotate(25 100 110)'%3E%3Cpath d='M100 178C85 200 40 205 20 170C-2 130 15 60 65 25C80 15 92 8 100 4C108 8 120 15 135 25C185 60 202 130 180 170C160 205 115 200 100 178Z' fill='%23cfe5c3'/%3E%3Cpath d='M100 178L100 12M100 160L40 140M100 125L35 105M100 90L40 75M100 160L160 140M100 125L165 105M100 90L160 75' stroke='%23b4d3a6' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M100 178C100 195 98 210 94 222' stroke='%23b4d3a6' stroke-width='5' fill='none' stroke-linecap='round'/%3E%3Cg stroke='%23f6efe0' stroke-width='8' stroke-linecap='round' fill='none'%3E%3Cpath d='M2 152L55 128M0 116L52 100M10 80L58 72M40 42L72 52'/%3E%3Cpath d='M198 152L145 128M200 116L148 100M190 80L142 72M160 42L128 52'/%3E%3C/g%3E%3Cg fill='%23f6efe0'%3E%3Cellipse cx='72' cy='150' rx='5' ry='9'/%3E%3Cellipse cx='128' cy='150' rx='5' ry='9'/%3E%3Cellipse cx='80' cy='112' rx='4' ry='7'/%3E%3Cellipse cx='120' cy='112' rx='4' ry='7'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-40 -40 280 300'%3E%3Cg transform='rotate(-35 100 110)'%3E%3Cpath d='M100 178C85 200 40 205 20 170C-2 130 15 60 65 25C80 15 92 8 100 4C108 8 120 15 135 25C185 60 202 130 180 170C160 205 115 200 100 178Z' fill='%23cfe5c3'/%3E%3Cpath d='M100 178L100 12M100 160L40 140M100 125L35 105M100 90L40 75M100 160L160 140M100 125L165 105M100 90L160 75' stroke='%23b4d3a6' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M100 178C100 195 98 210 94 222' stroke='%23b4d3a6' stroke-width='5' fill='none' stroke-linecap='round'/%3E%3Cg stroke='%23f6efe0' stroke-width='8' stroke-linecap='round' fill='none'%3E%3Cpath d='M2 152L55 128M0 116L52 100M10 80L58 72M40 42L72 52'/%3E%3Cpath d='M198 152L145 128M200 116L148 100M190 80L142 72M160 42L128 52'/%3E%3C/g%3E%3Cg fill='%23f6efe0'%3E%3Cellipse cx='72' cy='150' rx='5' ry='9'/%3E%3Cellipse cx='128' cy='150' rx='5' ry='9'/%3E%3Cellipse cx='80' cy='112' rx='4' ry='7'/%3E%3Cellipse cx='120' cy='112' rx='4' ry='7'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right -70px top 70px,left -80px bottom 60px;background-size:250px,220px}
 header{background:#2f7d4f;color:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:5}
 header h1{font-size:19px;margin:0;flex:1}header small{display:block;font-weight:400;font-size:12px;opacity:.85}
 header button{background:rgba(255,255,255,.2);color:#fff;border:0;border-radius:10px;padding:8px 11px;font-size:15px}
@@ -37,6 +37,7 @@ nav button{flex:1;padding:13px;border:0;background:none;color:var(--mut);font-si
 <div id="modal" onclick="this.style.display='none'"></div><div id="msg"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 /* ====== CONFIGURACIÓN: edita solo estas 3 líneas ====== */
 const CONFIG = {
@@ -74,19 +75,28 @@ async function gf(path,opts={}){
     const e=new Error(m||"Error "+r.status);e.status=r.status;throw e}
   return r;
 }
-async function escribir(h,n,fila){
-  const col=String.fromCharCode(64+fila.length);
-  await gf(`${WB()}/worksheets('${h}')/range(address='A${n}:${col}${n}')`,{method:"PATCH",headers:J,body:JSON.stringify({values:[fila]})});
+const HEAD={Plantas:["Nombre","Ubicación","Notas"],Registros:["Fecha","Planta","Tipo","Detalle","Quién"],Fotos:["Fecha","Planta","Archivo","Quién","Nota"]};
+const XLSX_MIME="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+async function bajar(){
+  const meta=await(await gf(P(CONFIG.EXCEL))).json();
+  const buf=await(await gf(`${P(CONFIG.EXCEL)}:/content`)).arrayBuffer();
+  const wb=XLSX.read(buf,{type:"array"});
+  for(const h in HEAD)if(!wb.Sheets[h])XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([HEAD[h]]),h);
+  return {wb,etag:meta.eTag};
 }
-async function agregarFila(h,fila){
-  const u=await(await gf(`${WB()}/worksheets('${h}')/usedRange(valuesOnly=true)`)).json();
-  await escribir(h,u.rowIndex+u.rowCount+1,fila);
+const serial=iso=>{const[y,m,d]=iso.split("-").map(Number);return Date.UTC(y,m-1,d)/864e5+25569};
+async function modificar(fn){
+  for(let i=0;i<3;i++){
+    const {wb,etag}=await bajar();fn(wb);
+    try{await gf(`${P(CONFIG.EXCEL)}:/content`,{method:"PUT",headers:{"Content-Type":XLSX_MIME,"If-Match":etag},
+      body:XLSX.write(wb,{bookType:"xlsx",type:"array"})});return}
+    catch(e){if(e.status!==412||i===2)throw e} /* 412 = alguien más guardó justo antes: se reintenta */
+  }
 }
-async function hoja(h,header){
-  try{return (await(await gf(`${WB()}/worksheets('${h}')/usedRange(valuesOnly=true)`)).json()).values||[]}
-  catch(e){if(e.status!==404)throw e;
-    await gf(`${WB()}/worksheets/add`,{method:"POST",headers:J,body:JSON.stringify({name:h})});
-    await escribir(h,1,header);return [header]}
+function agregarFila(h,fila){
+  const f=[...fila];
+  if(h!=="Plantas"&&/^\d{4}-\d{2}-\d{2}$/.test(f[0]))f[0]={t:"n",v:serial(f[0]),z:"yyyy-mm-dd"};
+  return modificar(wb=>XLSX.utils.sheet_add_aoa(wb.Sheets[h],[f],{origin:-1}));
 }
 function fechaISO(v){
   if(typeof v==="number")return new Date(Math.round((v-25569)*864e5)).toISOString().slice(0,10);
@@ -101,9 +111,9 @@ async function cargar(sil){
       try{await gf(P(CONFIG.EXCEL))}
       catch(e){throw e.status===404?new Error(`No se encontró el Excel (${CONFIG.EXCEL}) en la carpeta de OneDrive. Revisa CONFIG o el enlace compartido.`):e}
       S.ok=true}
-    const [a,b,c]=await Promise.all([hoja("Plantas",["Nombre","Ubicación","Notas"]),
-      hoja("Registros",["Fecha","Planta","Tipo","Detalle","Quién"]),hoja("Fotos",["Fecha","Planta","Archivo","Quién","Nota"])]);
-    S.plantas=a.slice(1).map(r=>String(r[0]||"")).filter(Boolean);S.regs=filas(b);S.fotos=filas(c);
+    const {wb}=await bajar();
+    const g=h=>XLSX.utils.sheet_to_json(wb.Sheets[h],{header:1,raw:true,defval:""});
+    S.plantas=g("Plantas").slice(1).map(r=>String(r[0]||"")).filter(Boolean);S.regs=filas(g("Registros"));S.fotos=filas(g("Fotos"));
     pintar();$("quien").textContent=`${QUIEN} · actualizado ${new Date().toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"})}`;
   }catch(e){if(!sil)aviso(e.message,true)}
 }
