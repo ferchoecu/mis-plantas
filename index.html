@@ -16,8 +16,8 @@ header button{background:rgba(255,255,255,.2);color:#fff;border:0;border-radius:
 main{padding:12px 14px;max-width:640px;margin:auto}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
 .card h2{font-size:13px;color:var(--ac);margin:0 0 10px;text-transform:uppercase;letter-spacing:.05em}
-.pl{display:flex;justify-content:space-between;gap:8px;padding:10px;border-radius:10px;margin-bottom:6px;background:var(--bg)}
-.pl.hoy{background:var(--ok)}.pl b{display:block}.mut{color:var(--mut);font-size:13px}
+.pl{padding:10px 12px;border-radius:10px;margin-bottom:8px;background:var(--bg)}
+.pl.hoy{background:var(--ok)}.pl .top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}.pl .top b{display:block}.pl .l{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px solid var(--bd);font-size:14px}.ic{background:none;border:0;font-size:19px;padding:2px 6px}.mut{color:var(--mut);font-size:13px}
 label{display:block;font-size:13px;color:var(--mut);margin:9px 0 3px}
 input,select{width:100%;padding:11px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font-size:16px}
 button.p{width:100%;margin-top:14px;padding:13px;border:0;border-radius:12px;background:var(--ac);color:#fff;font-size:16px;font-weight:600}
@@ -49,7 +49,7 @@ const CONFIG = {
 /* ====================================================== */
 const TIPOS=["Riego","Fertilización","Poda","Trasplante","Plaga/tratamiento","Observación"];
 const SCOPES=["Files.ReadWrite.All"],J={"Content-Type":"application/json"};
-const S={plantas:[],regs:[],fotos:[],ok:false,ord:[]};
+const S={plantas:[],ubic:{},regs:[],fotos:[],ord:[],histOrd:[]};
 let msalApp,account,QUIEN="",busy=false;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -77,26 +77,49 @@ async function gf(path,opts={}){
 }
 const HEAD={Plantas:["Nombre","Ubicación","Notas"],Registros:["Fecha","Planta","Tipo","Detalle","Quién"],Fotos:["Fecha","Planta","Archivo","Quién","Nota"]};
 const XLSX_MIME="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+let pend=0,cola=Promise.resolve();
 async function bajar(){
-  const meta=await(await gf(P(CONFIG.EXCEL))).json();
-  const buf=await(await gf(`${P(CONFIG.EXCEL)}:/content`)).arrayBuffer();
+  const [meta,buf]=await Promise.all([gf(P(CONFIG.EXCEL)).then(r=>r.json()),gf(`${P(CONFIG.EXCEL)}:/content`).then(r=>r.arrayBuffer())]);
   const wb=XLSX.read(buf,{type:"array"});
   for(const h in HEAD)if(!wb.Sheets[h])XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([HEAD[h]]),h);
   return {wb,etag:meta.eTag};
 }
 const serial=iso=>{const[y,m,d]=iso.split("-").map(Number);return Date.UTC(y,m-1,d)/864e5+25569};
+/* Descarga el Excel, aplica fn(wb) y lo sube. Si fn devuelve false no se sube nada. */
 async function modificar(fn){
   for(let i=0;i<3;i++){
-    const {wb,etag}=await bajar();fn(wb);
+    const {wb,etag}=await bajar();
+    if(fn(wb)===false)return wb;
     try{await gf(`${P(CONFIG.EXCEL)}:/content`,{method:"PUT",headers:{"Content-Type":XLSX_MIME,"If-Match":etag},
-      body:XLSX.write(wb,{bookType:"xlsx",type:"array"})});return}
-    catch(e){if(e.status!==412||i===2)throw e} /* 412 = alguien más guardó justo antes: se reintenta */
+      body:XLSX.write(wb,{bookType:"xlsx",type:"array"})});return wb}
+    catch(e){if(e.status!==412||i===2)throw e} /* 412 = alguien guardó justo antes: se reintenta */
   }
 }
-function agregarFila(h,fila){
+function anexar(wb,h,fila){
   const f=[...fila];
   if(h!=="Plantas"&&/^\d{4}-\d{2}-\d{2}$/.test(f[0]))f[0]={t:"n",v:serial(f[0]),z:"yyyy-mm-dd"};
-  return modificar(wb=>XLSX.utils.sheet_add_aoa(wb.Sheets[h],[f],{origin:-1}));
+  XLSX.utils.sheet_add_aoa(wb.Sheets[h],[f],{origin:-1});
+}
+const celda=(ws,R,C)=>{const c=ws[XLSX.utils.encode_cell({r:R,c:C})];return c?c.v:""};
+const txtv=(ws,R,C)=>String(celda(ws,R,C)??"");
+const setTxt=(ws,R,C,v)=>{ws[XLSX.utils.encode_cell({r:R,c:C})]={t:"s",v}};
+function renombrar(w,v,n,ub){
+  const pl=w.Sheets.Plantas,rg=XLSX.utils.decode_range(pl["!ref"]);
+  for(let R=rg.s.r+1;R<=rg.e.r;R++)if(txtv(pl,R,0)===v){setTxt(pl,R,0,n);setTxt(pl,R,1,ub);break}
+  if(n!==v)["Registros","Fotos"].forEach(h=>{const ws=w.Sheets[h],r=XLSX.utils.decode_range(ws["!ref"]);
+    for(let R=r.s.r+1;R<=r.e.r;R++)if(txtv(ws,R,1)===v)setTxt(ws,R,1,n)});
+}
+function eliminarFila(ws,r){
+  const rg=XLSX.utils.decode_range(ws["!ref"]);let hit=-1;
+  for(let R=rg.e.r;R>rg.s.r;R--){
+    if(fechaISO(celda(ws,R,0))===r[0]&&txtv(ws,R,1)===r[1]&&txtv(ws,R,2)===r[2]&&txtv(ws,R,3)===r[3]&&txtv(ws,R,4)===r[4]){hit=R;break}
+  }
+  if(hit<0)return false; /* ya no existe */
+  for(let R=hit;R<rg.e.r;R++)for(let C=rg.s.c;C<=rg.e.c;C++){
+    const a=XLSX.utils.encode_cell({r:R,c:C}),b=XLSX.utils.encode_cell({r:R+1,c:C});
+    if(ws[b])ws[a]=ws[b];else delete ws[a]}
+  for(let C=rg.s.c;C<=rg.e.c;C++)delete ws[XLSX.utils.encode_cell({r:rg.e.r,c:C})];
+  rg.e.r--;ws["!ref"]=XLSX.utils.encode_range(rg);
 }
 function fechaISO(v){
   if(typeof v==="number")return new Date(Math.round((v-25569)*864e5)).toISOString().slice(0,10);
@@ -105,17 +128,29 @@ function fechaISO(v){
 }
 function filas(v){return v.slice(1).map(r=>{const f=fechaISO(r[0]),a=[...r,"","","","",""];return f&&a[1]?[f,...a.slice(1,5).map(String)]:null}).filter(Boolean)}
 
-async function cargar(sil){
-  try{
-    if(!S.ok){
-      try{await gf(P(CONFIG.EXCEL))}
-      catch(e){throw e.status===404?new Error(`No se encontró el Excel (${CONFIG.EXCEL}) en la carpeta de OneDrive. Revisa CONFIG o el enlace compartido.`):e}
-      S.ok=true}
-    const {wb}=await bajar();
-    const g=h=>XLSX.utils.sheet_to_json(wb.Sheets[h],{header:1,raw:true,defval:""});
-    S.plantas=g("Plantas").slice(1).map(r=>String(r[0]||"")).filter(Boolean);S.regs=filas(g("Registros"));S.fotos=filas(g("Fotos"));
-    pintar();$("quien").textContent=`${QUIEN} · actualizado ${new Date().toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"})}`;
-  }catch(e){if(!sil)aviso(e.message,true)}
+function filasWb(wb,h){return filas(XLSX.utils.sheet_to_json(wb.Sheets[h],{header:1,raw:true,defval:""}))}
+function leerWb(wb){
+  const pl=XLSX.utils.sheet_to_json(wb.Sheets.Plantas,{header:1,raw:true,defval:""}).slice(1).filter(r=>r[0]);
+  S.plantas=pl.map(r=>String(r[0]));S.ubic={};pl.forEach(r=>S.ubic[String(r[0])]=String(r[1]||""));
+  S.regs=filasWb(wb,"Registros");S.fotos=filasWb(wb,"Fotos");
+  try{localStorage.setItem("cache",JSON.stringify({p:S.plantas,u:S.ubic,r:S.regs,f:S.fotos}))}catch{}
+}
+function cargarCache(){try{const c=JSON.parse(localStorage.getItem("cache")||"null");if(c){S.plantas=c.p;S.ubic=c.u;S.regs=c.r;S.fotos=c.f;pintar()}}catch{}}
+const stamp=()=>{$("quien").textContent=`${QUIEN} · actualizado ${new Date().toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"})}`};
+function aplicar(wb){if(pend<=1){leerWb(wb);pintar();stamp()}}
+async function cargar(sil,force){
+  if(sil&&!force&&pend>0)return;
+  try{const {wb}=await bajar();leerWb(wb);pintar();stamp()}
+  catch(e){if(!sil)aviso(e.status===404?`No se encontró el Excel (${CONFIG.EXCEL}) en la carpeta de OneDrive. Revisa CONFIG o el enlace compartido.`:e.message,true)}
+}
+/* Guarda en segundo plano y en orden: la pantalla ya se actualizó antes de subir. */
+function enSegundoPlano(texto,fn){
+  pend++;aviso(texto);
+  cola=cola.then(async()=>{
+    try{const m=await fn();aviso(typeof m==="string"?m:"Guardado ✓")}
+    catch(e){aviso(e.message,true);await cargar(true,true)}
+    finally{pend--}
+  });
 }
 async function run(fn){
   if(busy)return;busy=true;aviso("Un momento…");
@@ -123,18 +158,25 @@ async function run(fn){
 }
 
 /* ---------- pantalla ---------- */
-const ultimo=(p,t)=>S.regs.filter(r=>r[1]===p&&r[2]===t).reduce((m,r)=>!m||r[0]>m[0]?r:m,null);
+const ultimo=(p,t)=>S.regs.filter(r=>r[1]===p&&r[2]===t).reduce((m,r)=>!m||r[0]>=m[0]?r:m,null);
 const dias=i=>Math.round((Date.parse(hoy())-Date.parse(i))/864e5);
-const txt=u=>!u?"—":(dias(u[0])<=0?"hoy":`hace ${dias(u[0])} d`)+(u[4]?` (${esc(u[4])})`:"");
+const fmt=i=>new Date(i+"T12:00:00").toLocaleDateString("es",{weekday:"short",day:"numeric",month:"short",year:"numeric"});
+function linea(ic,et,u){
+  if(!u)return `<div class="l"><span>${ic} ${et}</span><span class="mut">Sin registros</span></div>`;
+  const d=dias(u[0]),c=d<0?`en ${-d} d`:d===0?"hoy":d===1?"ayer":`hace ${d} días`;
+  return `<div class="l"><span>${ic} ${et}</span><span style="text-align:right"><b>${fmt(u[0])}</b><span class="mut" style="display:block">${c}${u[4]?" · "+esc(u[4]):""}</span></span></div>`;
+}
 function llenar(id){const s=$(id),v=s.value;
   s.innerHTML=S.plantas.length?S.plantas.map(p=>`<option>${esc(p)}</option>`).join(""):'<option value="">(agrega una planta)</option>';
   if(S.plantas.includes(v))s.value=v}
 function pintar(){
   llenar("planta");llenar("fplanta");
-  $("estado").innerHTML=S.plantas.map(p=>{const r=ultimo(p,"Riego"),f=ultimo(p,"Fertilización");
-    return `<div class="pl ${r&&r[0]===hoy()?"hoy":""}"><div><b>${esc(p)}</b><span class="mut">🧪 ${txt(f)}</span></div><div style="text-align:right">💧<br><span class="mut">${txt(r)}</span></div></div>`}).join("")||'<p class="mut">Aún no hay plantas.</p>';
-  $("hist").innerHTML=[...S.regs].sort((a,b)=>b[0].localeCompare(a[0])).slice(0,30).map(r=>
-    `<div class="row"><div><b>${esc(r[1])}</b> <span class="mut">${esc(r[2])}</span><div class="mut">${esc(r[3])}</div></div><div class="mut" style="text-align:right">${r[0]}<br>${esc(r[4])}</div></div>`).join("")||'<p class="mut">Sin registros.</p>';
+  $("estado").innerHTML=S.plantas.map((p,i)=>{
+    const r=ultimo(p,"Riego"),f=ultimo(p,"Fertilización"),u=S.ubic[p];
+    return `<div class="pl ${r&&r[0]===hoy()?"hoy":""}"><div class="top"><div><b>${esc(p)}</b>${u?`<span class="mut">${esc(u)}</span>`:""}</div><button class="ic" onclick="editarPlanta(${i})" title="Editar planta">✏️</button></div>${linea("💧","Último riego",r)}${linea("🧪","Último fertilizante",f)}</div>`}).join("")||'<p class="mut">Aún no hay plantas.</p>';
+  S.histOrd=[...S.regs].reverse().sort((a,b)=>b[0].localeCompare(a[0])).slice(0,30);
+  $("hist").innerHTML=S.histOrd.map((r,i)=>
+    `<div class="row"><div style="flex:1"><b>${esc(r[1])}</b> <span class="mut">${esc(r[2])}</span><div class="mut">${esc(r[3])}</div></div><div class="mut" style="text-align:right">${r[0]}<br>${esc(r[4])}</div><button class="ic" onclick="borrarReg(${i})" title="Borrar registro">🗑</button></div>`).join("")||'<p class="mut">Sin registros.</p>';
   S.ord=[...S.fotos].sort((a,b)=>b[0].localeCompare(a[0]));
   $("galeria").innerHTML=S.ord.map((r,i)=>
     `<div class="row"><div><b>${esc(r[1])}</b><div class="mut">${r[0]} · ${esc(r[3])}</div><div class="mut">${esc(r[4])}</div></div><button class="ver" onclick="verFoto(${i})">🖼</button></div>`).join("")||'<p class="mut">Sin fotos.</p>';
@@ -162,19 +204,47 @@ function tab(n){$("v1").hidden=n!==1;$("v2").hidden=n!==2;$("t1").className=n===
 
 /* ---------- acciones ---------- */
 function registrar(){
-  const p=$("planta").value,tipo=$("tipo").value,fecha=$("fecha").value;
+  const p=$("planta").value,tipo=$("tipo").value,fecha=$("fecha").value,det=$("detalle").value.trim();
   if(!p||!fecha)return aviso("Elige planta y fecha",true);
-  run(async()=>{
-    await cargar(true);
-    if(tipo==="Riego"){const u=ultimo(p,"Riego");
-      if(u&&u[0]===fecha&&!confirm(`${p} ya fue regada ese día${u[4]?" por "+u[4]:""}.\n¿Registrar otro riego?`))return aviso("Cancelado")}
-    await agregarFila("Registros",[fecha,p,tipo,$("detalle").value.trim(),QUIEN]);
-    $("detalle").value="";await cargar(true);aviso("Guardado ✓")});
+  let conf=false;
+  if(tipo==="Riego"){const u=ultimo(p,"Riego");
+    if(u&&u[0]===fecha){if(!confirm(`${p} ya fue regada ese día${u[4]?" por "+u[4]:""}.\n¿Registrar otro riego?`))return;conf=true}}
+  S.regs.push([fecha,p,tipo,det,QUIEN]);pintar();$("detalle").value="";
+  enSegundoPlano("Guardando…",async()=>{
+    let cancel=false;
+    const wb=await modificar(w=>{
+      if(tipo==="Riego"&&!conf){
+        const u=filasWb(w,"Registros").filter(x=>x[1]===p&&x[2]==="Riego"&&x[0]===fecha).pop();
+        if(u){if(!confirm(`${p} ya fue regada ese día${u[4]?" por "+u[4]:""}.\n¿Registrar otro riego?`)){cancel=true;return false}conf=true}}
+      anexar(w,"Registros",[fecha,p,tipo,det,QUIEN]);
+    });
+    if(cancel){await cargar(true,true);return "Cancelado"}
+    aplicar(wb);
+  });
 }
 function nuevaPlanta(){
   const n=(prompt("Nombre de la planta:")||"").trim();if(!n)return;
+  if(S.plantas.includes(n))return aviso("Esa planta ya existe",true);
   const u=(prompt("Ubicación (opcional):")||"").trim();
-  run(async()=>{await agregarFila("Plantas",[n,u,""]);await cargar(true);$("planta").value=n;$("fplanta").value=n;aviso("Planta agregada ✓")});
+  S.plantas.push(n);S.ubic[n]=u;pintar();$("planta").value=n;$("fplanta").value=n;
+  enSegundoPlano("Guardando…",async()=>aplicar(await modificar(w=>anexar(w,"Plantas",[n,u,""]))));
+}
+function editarPlanta(i){
+  const v=S.plantas[i];if(v===undefined)return;
+  const n=(prompt("Nombre de la planta:",v)||"").trim();if(!n)return;
+  const u0=S.ubic[v]||"",u=prompt("Ubicación (opcional):",u0);if(u===null)return;
+  const ub=u.trim();
+  if(n===v&&ub===u0)return;
+  if(n!==v&&S.plantas.includes(n))return aviso("Ya existe una planta con ese nombre",true);
+  S.plantas[i]=n;S.ubic[n]=ub;if(n!==v)delete S.ubic[v];
+  S.regs.forEach(r=>{if(r[1]===v)r[1]=n});S.fotos.forEach(r=>{if(r[1]===v)r[1]=n});pintar();
+  enSegundoPlano("Guardando cambios…",async()=>aplicar(await modificar(w=>{renombrar(w,v,n,ub)})));
+}
+function borrarReg(i){
+  const r=S.histOrd[i];if(!r)return;
+  if(!confirm(`¿Borrar este registro?\n${r[1]} · ${r[2]} · ${r[0]}${r[3]?"\n"+r[3]:""}`))return;
+  S.regs=S.regs.filter(x=>x!==r);pintar();
+  enSegundoPlano("Borrando…",async()=>aplicar(await modificar(w=>eliminarFila(w.Sheets.Registros,r))));
 }
 function reducir(file){return new Promise((ok,err)=>{const img=new Image();
   img.onload=()=>{const k=Math.min(1,1600/Math.max(img.width,img.height)),c=document.createElement("canvas");
@@ -191,10 +261,15 @@ async function subirArchivo(nombre,blob){
 function subir(){
   const p=$("fplanta").value,fs=[...$("archivos").files];
   if(!p)return aviso("Elige la planta",true);if(!fs.length)return aviso("Elige al menos una foto",true);
-  run(async()=>{let n=0;const nota=$("fnota").value.trim();
-    for(const f of fs){const b=await reducir(f),nombre=`${hoy()}_${limpio(p)}_${Math.random().toString(16).slice(2,8)}.jpg`;
-      await subirArchivo(nombre,b);await agregarFila("Fotos",[hoy(),p,nombre,QUIEN,nota]);n++}
-    $("archivos").value="";$("fnota").value="";await cargar(true);aviso(`${n} foto(s) subida(s) ✓`)});
+  const nota=$("fnota").value.trim(),fecha=hoy();
+  $("archivos").value="";$("fnota").value="";
+  enSegundoPlano(`Subiendo ${fs.length} foto(s)…`,async()=>{
+    const nuevas=await Promise.all(fs.map(async f=>{
+      const b=await reducir(f),nombre=`${fecha}_${limpio(p)}_${Math.random().toString(16).slice(2,8)}.jpg`;
+      await subirArchivo(nombre,b);return [fecha,p,nombre,QUIEN,nota]}));
+    aplicar(await modificar(w=>{nuevas.forEach(x=>anexar(w,"Fotos",x))}));
+    return `${nuevas.length} foto(s) subida(s) ✓`;
+  });
 }
 function verFoto(i){
   const f=S.ord[i];
@@ -216,7 +291,7 @@ function iniciar(){
   REF=m.ref||null;arrancar();
 }
 function arrancar(){
-  ["b1","b2","b3","nav"].forEach(i=>$(i).hidden=false);montar();cargar();
+  ["b1","b2","b3","nav"].forEach(i=>$(i).hidden=false);montar();cargarCache();cargar();
   setInterval(()=>{if(!document.hidden)cargar(true)},30000);
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)cargar(true)});
 }
