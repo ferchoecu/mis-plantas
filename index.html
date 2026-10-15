@@ -31,7 +31,7 @@ nav button{flex:1;padding:13px;border:0;background:none;color:var(--mut);font-si
 #msg{position:fixed;left:16px;right:16px;bottom:calc(84px + env(safe-area-inset-bottom));background:#222;color:#fff;padding:12px 14px;border-radius:12px;display:none;z-index:30;font-size:14px}
 </style></head><body>
 <header><h1>🌱 Mis Plantas<small id="quien"></small></h1>
-<button id="b1" onclick="cargar()" hidden>⟳</button><button id="b2" onclick="salir()" hidden>Salir</button></header>
+<button id="b1" onclick="cargar()" hidden>⟳</button><button id="b3" onclick="cambiarOrigen()" hidden>⚙</button><button id="b2" onclick="salir()" hidden>Salir</button></header>
 <main id="app"></main>
 <nav id="nav" hidden><button id="t1" class="on" onclick="tab(1)">💧 Cuidados</button><button id="t2" onclick="tab(2)">📷 Fotos</button></nav>
 <div id="modal" onclick="this.style.display='none'"></div><div id="msg"></div>
@@ -41,19 +41,24 @@ nav button{flex:1;padding:13px;border:0;background:none;color:var(--mut);font-si
 /* ====== CONFIGURACIÓN: edita solo estas 3 líneas ====== */
 const CONFIG = {
   CLIENT_ID: "430ca364-7d2d-457a-9a5a-9357f291a879",   // ID de aplicación (cliente) de Microsoft
-  EXCEL_PATH: "Plantas/plantas.xlsx",        // ruta del Excel dentro de tu OneDrive
-  FOTOS_PATH: "Plantas/fotos_plantas"        // carpeta de fotos (la misma que usa el programa de PC)
+  CARPETA: "Plantas",                        // carpeta de OneDrive que contiene el Excel
+  EXCEL: "plantas.xlsx",                     // nombre del Excel
+  FOTOS: "fotos_plantas"                     // carpeta de fotos (dentro de CARPETA)
 };
 /* ====================================================== */
 const TIPOS=["Riego","Fertilización","Poda","Trasplante","Plaga/tratamiento","Observación"];
-const SCOPES=["Files.ReadWrite"],J={"Content-Type":"application/json"};
+const SCOPES=["Files.ReadWrite.All"],J={"Content-Type":"application/json"};
 const S={plantas:[],regs:[],fotos:[],ok:false,ord:[]};
 let msalApp,account,QUIEN="",busy=false;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const hoy=()=>new Date().toLocaleDateString("sv-SE");
 const enc=p=>p.split("/").map(encodeURIComponent).join("/");
-const WB=()=>`/me/drive/root:/${enc(CONFIG.EXCEL_PATH)}:/workbook`;
+let REF=null; // null = OneDrive propio; {d,i} = carpeta compartida por otra cuenta
+const P=rel=>REF?`/drives/${REF.d}/items/${REF.i}:/${enc(rel)}`:`/me/drive/root:/${enc(CONFIG.CARPETA)}/${enc(rel)}`;
+const CH=()=>REF?`/drives/${REF.d}/items/${REF.i}/children`:`/me/drive/root:/${enc(CONFIG.CARPETA)}:/children`;
+const WB=()=>`${P(CONFIG.EXCEL)}:/workbook`;
+const shareId=u=>"u!"+btoa(u).replace(/=+$/,"").replace(/\//g,"_").replace(/\+/g,"-");
 const limpio=t=>t.replace(/[^\p{L}\p{N}]/gu,"_");
 function aviso(t,err){const m=$("msg");m.textContent=(err?"⚠️ ":"")+t;m.style.display="block";clearTimeout(aviso.t);aviso.t=setTimeout(()=>m.style.display="none",err?6000:3000)}
 
@@ -93,8 +98,8 @@ function filas(v){return v.slice(1).map(r=>{const f=fechaISO(r[0]),a=[...r,"",""
 async function cargar(sil){
   try{
     if(!S.ok){
-      try{await gf(`/me/drive/root:/${enc(CONFIG.EXCEL_PATH)}`)}
-      catch(e){throw e.status===404?new Error(`No se encontró el Excel en OneDrive (${CONFIG.EXCEL_PATH}). Revisa la ruta en CONFIG.`):e}
+      try{await gf(P(CONFIG.EXCEL))}
+      catch(e){throw e.status===404?new Error(`No se encontró el Excel (${CONFIG.EXCEL}) en la carpeta de OneDrive. Revisa CONFIG o el enlace compartido.`):e}
       S.ok=true}
     const [a,b,c]=await Promise.all([hoja("Plantas",["Nombre","Ubicación","Notas"]),
       hoja("Registros",["Fecha","Planta","Tipo","Detalle","Quién"]),hoja("Fotos",["Fecha","Planta","Archivo","Quién","Nota"])]);
@@ -167,11 +172,10 @@ function reducir(file){return new Promise((ok,err)=>{const img=new Image();
     URL.revokeObjectURL(img.src);c.toBlob(b=>b?ok(b):err(new Error("No se pudo procesar la foto")),"image/jpeg",.85)};
   img.onerror=()=>err(new Error("Formato de imagen no compatible"));img.src=URL.createObjectURL(file)})}
 async function subirArchivo(nombre,blob){
-  const url=`/me/drive/root:/${enc(CONFIG.FOTOS_PATH)}/${encodeURIComponent(nombre)}:/content`,o={method:"PUT",headers:{"Content-Type":"image/jpeg"},body:blob};
+  const url=`${P(CONFIG.FOTOS+"/"+nombre)}:/content`,o={method:"PUT",headers:{"Content-Type":"image/jpeg"},body:blob};
   try{await gf(url,o)}catch(e){if(e.status!==404)throw e;
-    const pt=CONFIG.FOTOS_PATH.split("/"),nom=pt.pop();
-    await gf(`/me/drive/${pt.length?`root:/${enc(pt.join("/"))}:`:"root"}/children`,{method:"POST",headers:J,
-      body:JSON.stringify({name:nom,folder:{},"@microsoft.graph.conflictBehavior":"fail"})});
+    await gf(CH(),{method:"POST",headers:J,
+      body:JSON.stringify({name:CONFIG.FOTOS,folder:{},"@microsoft.graph.conflictBehavior":"fail"})});
     await gf(url,o)}
 }
 function subir(){
@@ -185,7 +189,7 @@ function subir(){
 function verFoto(i){
   const f=S.ord[i];
   run(async()=>{
-    let it;try{it=await(await gf(`/me/drive/root:/${enc(CONFIG.FOTOS_PATH)}/${encodeURIComponent(f[2])}`)).json()}
+    let it;try{it=await(await gf(P(CONFIG.FOTOS+"/"+f[2]))).json()}
     catch(e){throw e.status===404?new Error("La foto aún no llega a OneDrive. Prueba en unos minutos."):e}
     const m=$("modal");m.innerHTML=`<img src="${it["@microsoft.graph.downloadUrl"]}"><p>${esc(f[1])} · ${f[0]}${f[3]?" · "+esc(f[3]):""}<br>${esc(f[4])}</p><p class="mut">Toca para cerrar</p>`;
     m.style.display="flex";$("msg").style.display="none"});
@@ -197,10 +201,34 @@ function tarjeta(html){$("app").innerHTML=`<div class="card">${html}</div>`}
 function iniciar(){
   try{QUIEN=localStorage.getItem("quien")||""}catch{}
   if(!QUIEN){QUIEN=(prompt("¿Cómo te llamas? (aparecerá en tus registros)")||account.name||"").trim();try{localStorage.setItem("quien",QUIEN)}catch{}}
-  ["b1","b2","nav"].forEach(i=>$(i).hidden=false);montar();cargar();
+  let m=null;try{m=JSON.parse(localStorage.getItem("origen")||"null")}catch{}
+  if(!m)return pantallaOrigen();
+  REF=m.ref||null;arrancar();
+}
+function arrancar(){
+  ["b1","b2","b3","nav"].forEach(i=>$(i).hidden=false);montar();cargar();
   setInterval(()=>{if(!document.hidden)cargar(true)},30000);
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)cargar(true)});
 }
+function pantallaOrigen(){
+  tarjeta(`<h2>¿De quién es el Excel?</h2>
+  <p class="mut">Elige según la cuenta con la que iniciaste sesión.</p>
+  <button class="p" onclick="origenPropio()">El Excel está en MI OneDrive</button>
+  <label style="margin-top:18px">O pega el enlace de la carpeta que te compartieron</label>
+  <input id="enlace" placeholder="https://1drv.ms/...">
+  <button class="s" onclick="origenCompartido()">Usar la carpeta compartida</button>`);
+}
+function origenPropio(){try{localStorage.setItem("origen","{}")}catch{}REF=null;arrancar()}
+async function origenCompartido(){
+  const u=$("enlace").value.trim();if(!u)return aviso("Pega primero el enlace",true);
+  aviso("Comprobando enlace…");
+  try{const it=await(await gf(`/shares/${shareId(u)}/driveItem`)).json();
+    const ref={d:it.parentReference.driveId,i:it.id};
+    try{localStorage.setItem("origen",JSON.stringify({ref}))}catch{}
+    REF=ref;$("msg").style.display="none";arrancar();
+  }catch(e){aviso("No se pudo abrir el enlace: "+e.message,true)}
+}
+function cambiarOrigen(){if(confirm("¿Cambiar de dónde se lee el Excel?")){try{localStorage.removeItem("origen")}catch{}location.reload()}}
 (async()=>{
   if(location.protocol==="file:")return tarjeta("<h2>Falta alojar la página</h2><p>Esta página debe abrirse desde su dirección web (https), no como archivo.</p>");
   if(CONFIG.CLIENT_ID.startsWith("PEGA"))return tarjeta("<h2>Falta configurar</h2><p>Abre index.html y pega el ID de tu aplicación de Microsoft en CLIENT_ID.</p>");
