@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mis Plantas">
+<meta name="theme-color" content="#2f7d4f">
+<title>Mis Plantas</title>
+<style>
+:root{--bg:#f3f6f1;--card:#fff;--tx:#1d2b1f;--mut:#6b7a6d;--ac:#2f7d4f;--ok:#d9f0e2;--bd:#dce5d9}
+@media(prefers-color-scheme:dark){:root{--bg:#121813;--card:#1c241e;--tx:#e8efe9;--mut:#93a395;--ac:#4fae79;--ok:#1f3a2a;--bd:#2b372d}}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;font:16px -apple-system,system-ui,sans-serif;background:var(--bg);color:var(--tx);padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+header{background:#2f7d4f;color:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:5}
+header h1{font-size:19px;margin:0;flex:1}header small{display:block;font-weight:400;font-size:12px;opacity:.85}
+header button{background:rgba(255,255,255,.2);color:#fff;border:0;border-radius:10px;padding:8px 11px;font-size:15px}
+main{padding:12px 14px;max-width:640px;margin:auto}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+.card h2{font-size:13px;color:var(--ac);margin:0 0 10px;text-transform:uppercase;letter-spacing:.05em}
+.pl{display:flex;justify-content:space-between;gap:8px;padding:10px;border-radius:10px;margin-bottom:6px;background:var(--bg)}
+.pl.hoy{background:var(--ok)}.pl b{display:block}.mut{color:var(--mut);font-size:13px}
+label{display:block;font-size:13px;color:var(--mut);margin:9px 0 3px}
+input,select{width:100%;padding:11px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font-size:16px}
+button.p{width:100%;margin-top:14px;padding:13px;border:0;border-radius:12px;background:var(--ac);color:#fff;font-size:16px;font-weight:600}
+button.s{width:100%;margin-top:8px;padding:11px;border:1px solid var(--bd);border-radius:12px;background:none;color:var(--tx);font-size:15px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--bd)}
+.row:last-child{border:0}.ver{font-size:26px;background:none;border:0;padding:4px 8px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;padding:13px;border:0;background:none;color:var(--mut);font-size:15px}nav button.on{color:var(--ac);font-weight:700}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px;z-index:20;color:#fff;text-align:center}
+#modal img{max-width:100%;max-height:72vh;border-radius:10px}
+#msg{position:fixed;left:16px;right:16px;bottom:calc(84px + env(safe-area-inset-bottom));background:#222;color:#fff;padding:12px 14px;border-radius:12px;display:none;z-index:30;font-size:14px}
+</style></head><body>
+<header><h1>🌱 Mis Plantas<small id="quien"></small></h1>
+<button id="b1" onclick="cargar()" hidden>⟳</button><button id="b2" onclick="salir()" hidden>Salir</button></header>
+<main id="app"></main>
+<nav id="nav" hidden><button id="t1" class="on" onclick="tab(1)">💧 Cuidados</button><button id="t2" onclick="tab(2)">📷 Fotos</button></nav>
+<div id="modal" onclick="this.style.display='none'"></div><div id="msg"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
+<script>
+/* ====== CONFIGURACIÓN: edita solo estas 3 líneas ====== */
+const CONFIG = {
+  CLIENT_ID: "430ca364-7d2d-457a-9a5a-9357f291a879",   // ID de aplicación (cliente) de Microsoft
+  EXCEL_PATH: "Plantas/plantas.xlsx",        // ruta del Excel dentro de tu OneDrive
+  FOTOS_PATH: "Plantas/fotos_plantas"        // carpeta de fotos (la misma que usa el programa de PC)
+};
+/* ====================================================== */
+const TIPOS=["Riego","Fertilización","Poda","Trasplante","Plaga/tratamiento","Observación"];
+const SCOPES=["Files.ReadWrite"],J={"Content-Type":"application/json"};
+const S={plantas:[],regs:[],fotos:[],ok:false,ord:[]};
+let msalApp,account,QUIEN="",busy=false;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const hoy=()=>new Date().toLocaleDateString("sv-SE");
+const enc=p=>p.split("/").map(encodeURIComponent).join("/");
+const WB=()=>`/me/drive/root:/${enc(CONFIG.EXCEL_PATH)}:/workbook`;
+const limpio=t=>t.replace(/[^\p{L}\p{N}]/gu,"_");
+function aviso(t,err){const m=$("msg");m.textContent=(err?"⚠️ ":"")+t;m.style.display="block";clearTimeout(aviso.t);aviso.t=setTimeout(()=>m.style.display="none",err?6000:3000)}
+
+/* ---------- Microsoft Graph ---------- */
+async function token(){
+  try{return (await msalApp.acquireTokenSilent({scopes:SCOPES,account})).accessToken}
+  catch(e){await msalApp.acquireTokenRedirect({scopes:SCOPES,account});throw e}
+}
+async function gf(path,opts={}){
+  const t=await token();
+  const r=await fetch("https://graph.microsoft.com/v1.0"+path,{...opts,headers:{Authorization:"Bearer "+t,...(opts.headers||{})}});
+  if(!r.ok){let m="";try{m=(await r.json()).error.message}catch{}
+    const e=new Error(m||"Error "+r.status);e.status=r.status;throw e}
+  return r;
+}
+async function escribir(h,n,fila){
+  const col=String.fromCharCode(64+fila.length);
+  await gf(`${WB()}/worksheets('${h}')/range(address='A${n}:${col}${n}')`,{method:"PATCH",headers:J,body:JSON.stringify({values:[fila]})});
+}
+async function agregarFila(h,fila){
+  const u=await(await gf(`${WB()}/worksheets('${h}')/usedRange(valuesOnly=true)`)).json();
+  await escribir(h,u.rowIndex+u.rowCount+1,fila);
+}
+async function hoja(h,header){
+  try{return (await(await gf(`${WB()}/worksheets('${h}')/usedRange(valuesOnly=true)`)).json()).values||[]}
+  catch(e){if(e.status!==404)throw e;
+    await gf(`${WB()}/worksheets/add`,{method:"POST",headers:J,body:JSON.stringify({name:h})});
+    await escribir(h,1,header);return [header]}
+}
+function fechaISO(v){
+  if(typeof v==="number")return new Date(Math.round((v-25569)*864e5)).toISOString().slice(0,10);
+  const s=String(v||"");if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.slice(0,10);
+  const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);return m?`${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`:null;
+}
+function filas(v){return v.slice(1).map(r=>{const f=fechaISO(r[0]),a=[...r,"","","","",""];return f&&a[1]?[f,...a.slice(1,5).map(String)]:null}).filter(Boolean)}
+
+async function cargar(sil){
+  try{
+    if(!S.ok){
+      try{await gf(`/me/drive/root:/${enc(CONFIG.EXCEL_PATH)}`)}
+      catch(e){throw e.status===404?new Error(`No se encontró el Excel en OneDrive (${CONFIG.EXCEL_PATH}). Revisa la ruta en CONFIG.`):e}
+      S.ok=true}
+    const [a,b,c]=await Promise.all([hoja("Plantas",["Nombre","Ubicación","Notas"]),
+      hoja("Registros",["Fecha","Planta","Tipo","Detalle","Quién"]),hoja("Fotos",["Fecha","Planta","Archivo","Quién","Nota"])]);
+    S.plantas=a.slice(1).map(r=>String(r[0]||"")).filter(Boolean);S.regs=filas(b);S.fotos=filas(c);
+    pintar();$("quien").textContent=`${QUIEN} · actualizado ${new Date().toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"})}`;
+  }catch(e){if(!sil)aviso(e.message,true)}
+}
+async function run(fn){
+  if(busy)return;busy=true;aviso("Un momento…");
+  try{await fn()}catch(e){aviso(e.message,true)}finally{busy=false}
+}
+
+/* ---------- pantalla ---------- */
+const ultimo=(p,t)=>S.regs.filter(r=>r[1]===p&&r[2]===t).reduce((m,r)=>!m||r[0]>m[0]?r:m,null);
+const dias=i=>Math.round((Date.parse(hoy())-Date.parse(i))/864e5);
+const txt=u=>!u?"—":(dias(u[0])<=0?"hoy":`hace ${dias(u[0])} d`)+(u[4]?` (${esc(u[4])})`:"");
+function llenar(id){const s=$(id),v=s.value;
+  s.innerHTML=S.plantas.length?S.plantas.map(p=>`<option>${esc(p)}</option>`).join(""):'<option value="">(agrega una planta)</option>';
+  if(S.plantas.includes(v))s.value=v}
+function pintar(){
+  llenar("planta");llenar("fplanta");
+  $("estado").innerHTML=S.plantas.map(p=>{const r=ultimo(p,"Riego"),f=ultimo(p,"Fertilización");
+    return `<div class="pl ${r&&r[0]===hoy()?"hoy":""}"><div><b>${esc(p)}</b><span class="mut">🧪 ${txt(f)}</span></div><div style="text-align:right">💧<br><span class="mut">${txt(r)}</span></div></div>`}).join("")||'<p class="mut">Aún no hay plantas.</p>';
+  $("hist").innerHTML=[...S.regs].sort((a,b)=>b[0].localeCompare(a[0])).slice(0,30).map(r=>
+    `<div class="row"><div><b>${esc(r[1])}</b> <span class="mut">${esc(r[2])}</span><div class="mut">${esc(r[3])}</div></div><div class="mut" style="text-align:right">${r[0]}<br>${esc(r[4])}</div></div>`).join("")||'<p class="mut">Sin registros.</p>';
+  S.ord=[...S.fotos].sort((a,b)=>b[0].localeCompare(a[0]));
+  $("galeria").innerHTML=S.ord.map((r,i)=>
+    `<div class="row"><div><b>${esc(r[1])}</b><div class="mut">${r[0]} · ${esc(r[3])}</div><div class="mut">${esc(r[4])}</div></div><button class="ver" onclick="verFoto(${i})">🖼</button></div>`).join("")||'<p class="mut">Sin fotos.</p>';
+}
+function montar(){
+  $("app").innerHTML=`<section id="v1">
+  <div class="card"><h2>Estado de las plantas</h2><div id="estado"></div></div>
+  <div class="card"><h2>Nuevo registro</h2>
+   <label>Planta</label><select id="planta"></select>
+   <label>Tipo de cuidado</label><select id="tipo">${TIPOS.map(t=>`<option>${t}</option>`).join("")}</select>
+   <label>Fecha</label><input type="date" id="fecha" value="${hoy()}">
+   <label>Detalle (ej. 500 ml)</label><input id="detalle">
+   <button class="p" onclick="registrar()">Guardar en Excel</button>
+   <button class="s" onclick="nuevaPlanta()">+ Nueva planta</button></div>
+  <div class="card"><h2>Últimos registros</h2><div id="hist"></div></div></section>
+  <section id="v2" hidden>
+  <div class="card"><h2>Subir fotos</h2>
+   <label>Planta</label><select id="fplanta"></select>
+   <label>Nota (opcional)</label><input id="fnota">
+   <label>Fotos</label><input type="file" id="archivos" accept="image/*" multiple>
+   <button class="p" onclick="subir()">📷 Subir fotos</button></div>
+  <div class="card"><h2>Galería</h2><p class="mut">Toca 🖼 para ver la foto.</p><div id="galeria"></div></div></section>`;
+}
+function tab(n){$("v1").hidden=n!==1;$("v2").hidden=n!==2;$("t1").className=n===1?"on":"";$("t2").className=n===2?"on":""}
+
+/* ---------- acciones ---------- */
+function registrar(){
+  const p=$("planta").value,tipo=$("tipo").value,fecha=$("fecha").value;
+  if(!p||!fecha)return aviso("Elige planta y fecha",true);
+  run(async()=>{
+    await cargar(true);
+    if(tipo==="Riego"){const u=ultimo(p,"Riego");
+      if(u&&u[0]===fecha&&!confirm(`${p} ya fue regada ese día${u[4]?" por "+u[4]:""}.\n¿Registrar otro riego?`))return aviso("Cancelado")}
+    await agregarFila("Registros",[fecha,p,tipo,$("detalle").value.trim(),QUIEN]);
+    $("detalle").value="";await cargar(true);aviso("Guardado ✓")});
+}
+function nuevaPlanta(){
+  const n=(prompt("Nombre de la planta:")||"").trim();if(!n)return;
+  const u=(prompt("Ubicación (opcional):")||"").trim();
+  run(async()=>{await agregarFila("Plantas",[n,u,""]);await cargar(true);$("planta").value=n;$("fplanta").value=n;aviso("Planta agregada ✓")});
+}
+function reducir(file){return new Promise((ok,err)=>{const img=new Image();
+  img.onload=()=>{const k=Math.min(1,1600/Math.max(img.width,img.height)),c=document.createElement("canvas");
+    c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+    URL.revokeObjectURL(img.src);c.toBlob(b=>b?ok(b):err(new Error("No se pudo procesar la foto")),"image/jpeg",.85)};
+  img.onerror=()=>err(new Error("Formato de imagen no compatible"));img.src=URL.createObjectURL(file)})}
+async function subirArchivo(nombre,blob){
+  const url=`/me/drive/root:/${enc(CONFIG.FOTOS_PATH)}/${encodeURIComponent(nombre)}:/content`,o={method:"PUT",headers:{"Content-Type":"image/jpeg"},body:blob};
+  try{await gf(url,o)}catch(e){if(e.status!==404)throw e;
+    const pt=CONFIG.FOTOS_PATH.split("/"),nom=pt.pop();
+    await gf(`/me/drive/${pt.length?`root:/${enc(pt.join("/"))}:`:"root"}/children`,{method:"POST",headers:J,
+      body:JSON.stringify({name:nom,folder:{},"@microsoft.graph.conflictBehavior":"fail"})});
+    await gf(url,o)}
+}
+function subir(){
+  const p=$("fplanta").value,fs=[...$("archivos").files];
+  if(!p)return aviso("Elige la planta",true);if(!fs.length)return aviso("Elige al menos una foto",true);
+  run(async()=>{let n=0;const nota=$("fnota").value.trim();
+    for(const f of fs){const b=await reducir(f),nombre=`${hoy()}_${limpio(p)}_${Math.random().toString(16).slice(2,8)}.jpg`;
+      await subirArchivo(nombre,b);await agregarFila("Fotos",[hoy(),p,nombre,QUIEN,nota]);n++}
+    $("archivos").value="";$("fnota").value="";await cargar(true);aviso(`${n} foto(s) subida(s) ✓`)});
+}
+function verFoto(i){
+  const f=S.ord[i];
+  run(async()=>{
+    let it;try{it=await(await gf(`/me/drive/root:/${enc(CONFIG.FOTOS_PATH)}/${encodeURIComponent(f[2])}`)).json()}
+    catch(e){throw e.status===404?new Error("La foto aún no llega a OneDrive. Prueba en unos minutos."):e}
+    const m=$("modal");m.innerHTML=`<img src="${it["@microsoft.graph.downloadUrl"]}"><p>${esc(f[1])} · ${f[0]}${f[3]?" · "+esc(f[3]):""}<br>${esc(f[4])}</p><p class="mut">Toca para cerrar</p>`;
+    m.style.display="flex";$("msg").style.display="none"});
+}
+function salir(){msalApp.logoutRedirect({account})}
+
+/* ---------- inicio ---------- */
+function tarjeta(html){$("app").innerHTML=`<div class="card">${html}</div>`}
+function iniciar(){
+  try{QUIEN=localStorage.getItem("quien")||""}catch{}
+  if(!QUIEN){QUIEN=(prompt("¿Cómo te llamas? (aparecerá en tus registros)")||account.name||"").trim();try{localStorage.setItem("quien",QUIEN)}catch{}}
+  ["b1","b2","nav"].forEach(i=>$(i).hidden=false);montar();cargar();
+  setInterval(()=>{if(!document.hidden)cargar(true)},30000);
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden)cargar(true)});
+}
+(async()=>{
+  if(location.protocol==="file:")return tarjeta("<h2>Falta alojar la página</h2><p>Esta página debe abrirse desde su dirección web (https), no como archivo.</p>");
+  if(CONFIG.CLIENT_ID.startsWith("PEGA"))return tarjeta("<h2>Falta configurar</h2><p>Abre index.html y pega el ID de tu aplicación de Microsoft en CLIENT_ID.</p>");
+  try{
+    msalApp=new msal.PublicClientApplication({auth:{clientId:CONFIG.CLIENT_ID,authority:"https://login.microsoftonline.com/common",
+      redirectUri:location.origin+location.pathname},cache:{cacheLocation:"localStorage"}});
+    if(msalApp.initialize)await msalApp.initialize();
+    const r=await msalApp.handleRedirectPromise();account=r?r.account:msalApp.getAllAccounts()[0];
+  }catch(e){return tarjeta("<h2>Error de inicio</h2><p>"+esc(e.message)+"</p>")}
+  if(account)iniciar();
+  else{tarjeta('<h2>Bienvenido</h2><p>Inicia sesión con tu cuenta de Microsoft (la de tu OneDrive).</p><button class="p" onclick="msalApp.loginRedirect({scopes:SCOPES})">Iniciar sesión con Microsoft</button>')}
+})();
+</script></body></html>
