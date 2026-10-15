@@ -205,7 +205,7 @@ function iniciar(){
   if(location.protocol==="file:")return tarjeta("<h2>Falta alojar la página</h2><p>Esta página debe abrirse desde su dirección web (https), no como archivo.</p>");
   if(CONFIG.CLIENT_ID.startsWith("PEGA"))return tarjeta("<h2>Falta configurar</h2><p>Abre index.html y pega el ID de tu aplicación de Microsoft en CLIENT_ID.</p>");
   try{
-    msalApp=new msal.PublicClientApplication({auth:{clientId:CONFIG.CLIENT_ID,authority:"https://login.microsoftonline.com/common",
+    msalApp=new msal.PublicClientApplication({auth:{clientId:CONFIG.CLIENT_ID,authority:"https://login.microsoftonline.com/consumers",
       redirectUri:location.origin+location.pathname},cache:{cacheLocation:"localStorage"}});
     if(msalApp.initialize)await msalApp.initialize();
     const r=await msalApp.handleRedirectPromise();account=r?r.account:msalApp.getAllAccounts()[0];
