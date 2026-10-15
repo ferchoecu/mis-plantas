@@ -10,6 +10,7 @@
 *{box-sizing:border-box}[hidden]{display:none!important}
 body{margin:0;font:16px -apple-system,system-ui,sans-serif;background:var(--bg);color:var(--tx);padding-bottom:calc(72px + env(safe-area-inset-bottom))}
 body::before{content:"";position:fixed;top:0;left:0;right:0;bottom:0;z-index:-1;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-40 -40 280 300'%3E%3Cg transform='rotate(25 100 110)'%3E%3Cpath d='M100 178C85 200 40 205 20 170C-2 130 15 60 65 25C80 15 92 8 100 4C108 8 120 15 135 25C185 60 202 130 180 170C160 205 115 200 100 178Z' fill='%23cfe5c3'/%3E%3Cpath d='M100 178L100 12M100 160L40 140M100 125L35 105M100 90L40 75M100 160L160 140M100 125L165 105M100 90L160 75' stroke='%23b4d3a6' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M100 178C100 195 98 210 94 222' stroke='%23b4d3a6' stroke-width='5' fill='none' stroke-linecap='round'/%3E%3Cg stroke='%23f6efe0' stroke-width='8' stroke-linecap='round' fill='none'%3E%3Cpath d='M2 152L55 128M0 116L52 100M10 80L58 72M40 42L72 52'/%3E%3Cpath d='M198 152L145 128M200 116L148 100M190 80L142 72M160 42L128 52'/%3E%3C/g%3E%3Cg fill='%23f6efe0'%3E%3Cellipse cx='72' cy='150' rx='5' ry='9'/%3E%3Cellipse cx='128' cy='150' rx='5' ry='9'/%3E%3Cellipse cx='80' cy='112' rx='4' ry='7'/%3E%3Cellipse cx='120' cy='112' rx='4' ry='7'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-40 -40 280 300'%3E%3Cg transform='rotate(-35 100 110)'%3E%3Cpath d='M100 178C85 200 40 205 20 170C-2 130 15 60 65 25C80 15 92 8 100 4C108 8 120 15 135 25C185 60 202 130 180 170C160 205 115 200 100 178Z' fill='%23cfe5c3'/%3E%3Cpath d='M100 178L100 12M100 160L40 140M100 125L35 105M100 90L40 75M100 160L160 140M100 125L165 105M100 90L160 75' stroke='%23b4d3a6' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M100 178C100 195 98 210 94 222' stroke='%23b4d3a6' stroke-width='5' fill='none' stroke-linecap='round'/%3E%3Cg stroke='%23f6efe0' stroke-width='8' stroke-linecap='round' fill='none'%3E%3Cpath d='M2 152L55 128M0 116L52 100M10 80L58 72M40 42L72 52'/%3E%3Cpath d='M198 152L145 128M200 116L148 100M190 80L142 72M160 42L128 52'/%3E%3C/g%3E%3Cg fill='%23f6efe0'%3E%3Cellipse cx='72' cy='150' rx='5' ry='9'/%3E%3Cellipse cx='128' cy='150' rx='5' ry='9'/%3E%3Cellipse cx='80' cy='112' rx='4' ry='7'/%3E%3Cellipse cx='120' cy='112' rx='4' ry='7'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right -70px top 70px,left -80px bottom 60px;background-size:250px,220px}
+#panel{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:15;overflow-y:auto;-webkit-overflow-scrolling:touch}#phead{position:sticky;top:0;z-index:2;background:#2f7d4f;color:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;display:flex;align-items:center;gap:12px;font-weight:600}#phead button{background:rgba(255,255,255,.2);color:#fff;border:0;border-radius:10px;padding:8px 12px;font-size:15px}#pbody{max-width:640px;margin:auto;padding:12px 14px calc(28px + env(safe-area-inset-bottom))}.lk{display:inline-block;color:var(--ac);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
 header{background:#2f7d4f;color:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:5}
 header h1{font-size:19px;margin:0;flex:1}header small{display:block;font-weight:400;font-size:12px;opacity:.85}
 header button{background:rgba(255,255,255,.2);color:#fff;border:0;border-radius:10px;padding:8px 11px;font-size:15px}
@@ -34,7 +35,8 @@ nav button{flex:1;padding:13px;border:0;background:none;color:var(--mut);font-si
 <button id="b1" onclick="cargar()" hidden>⟳</button><button id="b3" onclick="cambiarOrigen()" hidden>⚙</button><button id="b2" onclick="salir()" hidden>Salir</button></header>
 <main id="app"></main>
 <nav id="nav" hidden><button id="t1" class="on" onclick="tab(1)">💧 Cuidados</button><button id="t2" onclick="tab(2)">📷 Fotos</button></nav>
-<div id="modal" onclick="this.style.display='none'"></div><div id="msg"></div>
+<div id="modal" onclick="this.style.display='none'"></div>
+<div id="panel" hidden><div id="phead"><button onclick="cerrarPlanta()">‹ Volver</button><span>Historial de la planta</span></div><div id="pbody"></div></div><div id="msg"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -173,13 +175,32 @@ function pintar(){
   llenar("planta");llenar("fplanta");
   $("estado").innerHTML=S.plantas.map((p,i)=>{
     const r=ultimo(p,"Riego"),f=ultimo(p,"Fertilización"),u=S.ubic[p];
-    return `<div class="pl ${r&&r[0]===hoy()?"hoy":""}"><div class="top"><div><b>${esc(p)}</b>${u?`<span class="mut">${esc(u)}</span>`:""}</div><button class="ic" onclick="editarPlanta(${i})" title="Editar planta">✏️</button></div>${linea("💧","Último riego",r)}${linea("🧪","Último fertilizante",f)}</div>`}).join("")||'<p class="mut">Aún no hay plantas.</p>';
+    return `<div class="pl ${r&&r[0]===hoy()?"hoy":""}"><div class="top"><div><div><b class="lk" onclick="verPlanta(${i})">${esc(p)}</b></div>${u?`<span class="mut">${esc(u)}</span>`:""}</div><button class="ic" onclick="editarPlanta(${i})" title="Editar planta">✏️</button></div>${linea("💧","Último riego",r)}${linea("🧪","Último fertilizante",f)}</div>`}).join("")||'<p class="mut">Aún no hay plantas.</p>';
   S.histOrd=[...S.regs].reverse().sort((a,b)=>b[0].localeCompare(a[0])).slice(0,30);
   $("hist").innerHTML=S.histOrd.map((r,i)=>
     `<div class="row"><div style="flex:1"><b>${esc(r[1])}</b> <span class="mut">${esc(r[2])}</span><div class="mut">${esc(r[3])}</div></div><div class="mut" style="text-align:right">${r[0]}<br>${esc(r[4])}</div><button class="ic" onclick="borrarReg(${i})" title="Borrar registro">🗑</button></div>`).join("")||'<p class="mut">Sin registros.</p>';
   S.ord=[...S.fotos].sort((a,b)=>b[0].localeCompare(a[0]));
   $("galeria").innerHTML=S.ord.map((r,i)=>
     `<div class="row"><div><b>${esc(r[1])}</b><div class="mut">${r[0]} · ${esc(r[3])}</div><div class="mut">${esc(r[4])}</div></div><button class="ver" onclick="verFoto(${i})">🖼</button></div>`).join("")||'<p class="mut">Sin fotos.</p>';
+  if(PV!==null)pintarPlanta();
+}
+let PV=null,ASC=true;
+const ICONOS={"Riego":"💧","Fertilización":"🧪","Poda":"✂️","Trasplante":"🪴","Plaga/tratamiento":"🐛","Observación":"📝","Foto":"📷"};
+function verPlanta(i){const p=S.plantas[i];if(p===undefined)return;PV=p;ASC=true;pintarPlanta();$("panel").hidden=false;$("panel").scrollTop=0;document.body.style.overflow="hidden"}
+function cerrarPlanta(){PV=null;$("panel").hidden=true;document.body.style.overflow=""}
+function invertir(){ASC=!ASC;pintarPlanta()}
+function pintarPlanta(){
+  const p=PV;if(p===null)return;
+  if(!S.plantas.includes(p))return cerrarPlanta();
+  const ev=[...S.regs.filter(r=>r[1]===p).map((r,k)=>({f:r[0],k,t:r[2],d:r[3],q:r[4]})),
+            ...S.fotos.filter(r=>r[1]===p).map((r,k)=>({f:r[0],k:1e6+k,t:"Foto",d:r[4],q:r[3],foto:r}))];
+  ev.sort((a,b)=>a.f.localeCompare(b.f)||a.k-b.k);if(!ASC)ev.reverse();
+  const n=t=>ev.filter(e=>e.t===t).length;
+  $("pbody").innerHTML=`<div class="card"><h2>${esc(p)}</h2>${S.ubic[p]?`<p class="mut" style="margin:0 0 8px">${esc(S.ubic[p])}</p>`:""}
+    <div class="mut">${n("Riego")} riegos · ${n("Fertilización")} fertilizaciones · ${n("Foto")} fotos · ${ev.length} eventos en total</div>
+    <button class="s" onclick="invertir()">${ASC?"Orden: del más antiguo al más reciente ↓":"Orden: del más reciente al más antiguo ↑"}</button></div>
+    <div class="card"><h2>Historial</h2>${ev.map(e=>`<div class="row"><div style="flex:1"><b>${ICONOS[e.t]||"•"} ${esc(e.t)}</b><div class="mut">${esc(e.d)}</div></div>
+    <div class="mut" style="text-align:right">${fmt(e.f)}<br>${esc(e.q)}</div>${e.foto?`<button class="ver" onclick="verFoto(${S.ord.indexOf(e.foto)})">🖼</button>`:""}</div>`).join("")||'<p class="mut">Esta planta aún no tiene registros.</p>'}</div>`;
 }
 function montar(){
   $("app").innerHTML=`<section id="v1">
