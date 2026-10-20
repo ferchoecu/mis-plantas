@@ -89,6 +89,7 @@ nav button.on{color:#c4623a}
 .th img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover}
 .th small{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(0,0,0,.6));color:#fff;font:10px "DM Mono",ui-monospace,monospace;padding:12px 4px 3px;text-align:center}
 @media(min-width:600px){.thumbs{grid-template-columns:repeat(4,1fr)}}
+#hpag{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:10px;font:12px "DM Mono",ui-monospace,monospace;color:var(--mut)}
 </style></head><body>
 <header><h1>🌱 Mis Plantas<small id="quien"></small></h1>
 <button id="b1" onclick="cargar()" hidden>⟳</button><button id="b3" onclick="cambiarOrigen()" hidden>⚙</button><button id="b2" onclick="salir()" hidden>Salir</button></header>
@@ -252,8 +253,9 @@ function pintar(){
     return `<div class="pl ${r&&r[0]===hoy()?"hoy":""}" onclick="verPlanta(${i})"><div class="top"><div><b class="lk">${esc(p)}</b>${u?`<span class="mut" style="display:block">${esc(u)}</span>`:""}</div><button class="ic" onclick="event.stopPropagation();editarPlanta(${i})" title="Editar planta">✏️</button></div>${linea("💧","Último riego",r)}${linea("🧪","Último fertilizante",f)}<div class="mut" style="text-align:center;margin-top:6px">Toca para ver el calendario</div></div>`}).join("")||'<p class="mut">Aún no hay plantas.</p>';
   est.scrollLeft=sl;pintarPuntos();
   S.histOrd=[...S.regs].reverse().sort((a,b)=>b[0].localeCompare(a[0])).slice(0,30);
-  $("hist").innerHTML=S.histOrd.map((r,i)=>
-    `<div class="row"><div style="flex:1"><b>${esc(r[1])}</b> <span class="mut">${esc(r[2])}</span><div class="mut">${esc(r[3])}</div></div><div class="mut" style="text-align:right">${r[0]}<br>${esc(r[4])}</div><button class="ic" onclick="borrarReg(${i})" title="Borrar registro">🗑</button></div>`).join("")||'<p class="mut">Sin registros.</p>';
+  const np=Math.max(1,Math.ceil(S.histOrd.length/5));if(HP>=np)HP=np-1;if(HP<0)HP=0;
+  $("hpag").innerHTML=np>1?`<button class="ic" onclick="hpag(-1)" ${HP===0?"disabled":""}>‹</button><span>Página ${HP+1} de ${np}</span><button class="ic" onclick="hpag(1)" ${HP>=np-1?"disabled":""}>›</button>`:"";
+  $("hist").innerHTML=S.histOrd.slice(HP*5,HP*5+5).map((r,k)=>{const i=HP*5+k;return `<div class="row"><div style="flex:1"><b>${esc(r[1])}</b> <span class="mut">${esc(r[2])}</span><div class="mut">${esc(r[3])}</div></div><div class="mut" style="text-align:right">${r[0]}<br>${esc(r[4])}</div><button class="ic" onclick="borrarReg(${i})" title="Borrar registro">🗑</button></div>`}).join("")||'<p class="mut">Sin registros.</p>';
   S.ord=[...S.fotos].sort((a,b)=>b[0].localeCompare(a[0]));
   $("gfil").innerHTML=GF?`<div class="mut" style="margin-bottom:8px">Mostrando fotos de <b>${esc(GF)}</b> <button class="s" style="width:auto;display:inline-block;margin:0 0 0 8px;padding:4px 12px" onclick="GF=null;pintar()">Ver todas</button></div>`:"";
   $("galeria").innerHTML=S.ord.map((r,i)=>GF&&r[1]!==GF?"":
@@ -265,7 +267,8 @@ const ICONOS={"Riego":"💧","Fertilización":"🧪","Poda":"✂️","Trasplante
 function verPlanta(i){const p=S.plantas[i];if(p===undefined)return;PV=p;ASC=true;CAL=null;SD=null;pintarPlanta();$("panel").hidden=false;$("panel").scrollTop=0;document.body.style.overflow="hidden"}
 function cerrarPlanta(){PV=null;$("panel").hidden=true;document.body.style.overflow=""}
 function invertir(){ASC=!ASC;pintarPlanta()}
-let CAL=null,SD=null,GF=null;
+let CAL=null,SD=null,GF=null,HP=0;
+function hpag(d){HP+=d;pintar()}
 function recordatorio(p){
   const f=ultimo(p,"Fertilización");if(!f)return null;
   const d=new Date(f[0]+"T12:00:00");d.setDate(d.getDate()+CONFIG.FERT_DIAS);
@@ -348,7 +351,7 @@ function montar(){
    <div><label>Detalle (ej. 500 ml)</label><input id="detalle"></div></div>
    <button class="p" onclick="registrar()">Guardar en Excel</button>
    <button class="s" onclick="nuevaPlanta()">+ Nueva planta</button></div>
-  <div class="card"><h2>Últimos registros</h2><div id="hist"></div></div></section>
+  <div class="card"><h2>Últimos registros</h2><div id="hist"></div><div id="hpag"></div></div></section>
   <section id="v2" hidden>
   <div class="card"><h2>Subir fotos</h2>
    <label>Planta</label><select id="fplanta"></select>
