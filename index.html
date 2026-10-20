@@ -31,6 +31,23 @@ nav button{flex:1;padding:13px;border:0;background:none;color:var(--mut);font-si
 #modal{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px;z-index:20;color:#fff;text-align:center}
 #modal img{max-width:100%;max-height:72vh;border-radius:10px}
 #msg{position:fixed;left:16px;right:16px;bottom:calc(84px + env(safe-area-inset-bottom));background:#222;color:#fff;padding:12px 14px;border-radius:12px;display:none;z-index:30;font-size:14px}
+.navest{display:flex;gap:2px}
+@media(hover:none){.navest{display:none}}
+button.ic:disabled{opacity:.25;cursor:default}
+@media(min-width:600px){
+ main{max-width:760px}
+ .fg{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+ #estado .pl{flex:1 0 calc((100% - 10px)/2);scroll-snap-align:start}
+}
+@media(min-width:900px){
+ main{max-width:1180px}
+ #estado .pl{flex:1 0 calc((100% - 20px)/3)}
+ #v1{display:grid;grid-template-columns:1fr 1fr;gap:0 14px;align-items:start}
+ #v1>.card:first-child{grid-column:1/-1}
+ #v2{display:grid;grid-template-columns:minmax(300px,1fr) 2fr;gap:0 14px;align-items:start}
+ #pbody{max-width:1100px;display:grid;grid-template-columns:minmax(340px,430px) 1fr;gap:0 14px;align-items:start}
+ #pbody>.card:nth-child(3){grid-column:2;grid-row:1/span 2}
+}
 </style></head><body>
 <header><h1>🌱 Mis Plantas<small id="quien"></small></h1>
 <button id="b1" onclick="cargar()" hidden>⟳</button><button id="b3" onclick="cambiarOrigen()" hidden>⚙</button><button id="b2" onclick="salir()" hidden>Salir</button></header>
@@ -172,15 +189,22 @@ function linea(ic,et,u){
 function llenar(id){const s=$(id),v=s.value;
   s.innerHTML=S.plantas.length?S.plantas.map(p=>`<option>${esc(p)}</option>`).join(""):'<option value="">(agrega una planta)</option>';
   if(S.plantas.includes(v))s.value=v}
+function paso(){
+  const est=$("estado"),f=est.firstElementChild;if(!f)return {w:1,v:1};
+  const w=f.offsetWidth+10;return {w,v:Math.max(1,Math.floor((est.clientWidth-28+10)/w+0.1))};
+}
+function deslizar(d){const {w,v}=paso();$("estado").scrollBy({left:d*v*w,behavior:"smooth"})}
 function pintarPuntos(){
-  const est=$("estado"),n=S.plantas.length,w=est.firstElementChild?est.firstElementChild.offsetWidth+10:1;
-  const k=Math.min(n-1,Math.max(0,Math.round(est.scrollLeft/w)));
-  $("dots").innerHTML=n<2?"":n>10?`${k+1} / ${n}`:S.plantas.map((_,i)=>`<span class="pt${i===k?" on":""}"></span>`).join("");
+  const est=$("estado"),n=S.plantas.length,{w,v}=paso();
+  const k=Math.min(Math.max(0,n-1),Math.max(0,Math.round(est.scrollLeft/w)));
+  $("dots").innerHTML=n<2?"":v>1?`${k+1}–${Math.min(n,k+v)} de ${n}`:n>10?`${k+1} / ${n}`:S.plantas.map((_,i)=>`<span class="pt${i===k?" on":""}"></span>`).join("");
+  const pa=$("prev"),si=$("next");
+  if(pa){pa.disabled=est.scrollLeft<=2;si.disabled=est.scrollLeft+est.clientWidth>=est.scrollWidth-2}
 }
 function pintar(){
   llenar("planta");llenar("fplanta");
   const est=$("estado"),sl=est.scrollLeft;
-  if(!est._sc){est._sc=1;est.addEventListener("scroll",pintarPuntos,{passive:true})}
+  if(!est._sc){est._sc=1;est.addEventListener("scroll",pintarPuntos,{passive:true});window.addEventListener("resize",pintarPuntos)}
   est.innerHTML=S.plantas.map((p,i)=>{
     const r=ultimo(p,"Riego"),f=ultimo(p,"Fertilización"),u=S.ubic[p];
     return `<div class="pl ${r&&r[0]===hoy()?"hoy":""}" onclick="verPlanta(${i})"><div class="top"><div><b class="lk">${esc(p)}</b>${u?`<span class="mut" style="display:block">${esc(u)}</span>`:""}</div><button class="ic" onclick="event.stopPropagation();editarPlanta(${i})" title="Editar planta">✏️</button></div>${linea("💧","Último riego",r)}${linea("🧪","Último fertilizante",f)}<div class="mut" style="text-align:center;margin-top:6px">Toca para ver el calendario</div></div>`}).join("")||'<p class="mut">Aún no hay plantas.</p>';
@@ -232,12 +256,12 @@ function pintarPlanta(){
 }
 function montar(){
   $("app").innerHTML=`<section id="v1">
-  <div class="card"><h2>Estado de las plantas</h2><div id="estado"></div><div id="dots"></div></div>
+  <div class="card"><div class="mes"><h2 style="margin:0">Estado de las plantas</h2><div class="navest"><button class="ic" id="prev" onclick="deslizar(-1)" title="Anterior">‹</button><button class="ic" id="next" onclick="deslizar(1)" title="Siguiente">›</button></div></div><div id="estado"></div><div id="dots"></div></div>
   <div class="card"><h2>Nuevo registro</h2>
-   <label>Planta</label><select id="planta"></select>
-   <label>Tipo de cuidado</label><select id="tipo">${TIPOS.map(t=>`<option>${t}</option>`).join("")}</select>
-   <label>Fecha</label><input type="date" id="fecha" value="${hoy()}">
-   <label>Detalle (ej. 500 ml)</label><input id="detalle">
+   <div class="fg"><div><label>Planta</label><select id="planta"></select></div>
+   <div><label>Tipo de cuidado</label><select id="tipo">${TIPOS.map(t=>`<option>${t}</option>`).join("")}</select></div>
+   <div><label>Fecha</label><input type="date" id="fecha" value="${hoy()}"></div>
+   <div><label>Detalle (ej. 500 ml)</label><input id="detalle"></div></div>
    <button class="p" onclick="registrar()">Guardar en Excel</button>
    <button class="s" onclick="nuevaPlanta()">+ Nueva planta</button></div>
   <div class="card"><h2>Últimos registros</h2><div id="hist"></div></div></section>
