@@ -48,7 +48,7 @@ button.ic:disabled{opacity:.25;cursor:default}
  #v1>.card:first-child{grid-column:1/-1}
  #v2{display:grid;grid-template-columns:minmax(300px,1fr) 2fr;gap:0 14px;align-items:start}
  #pbody{max-width:1100px;display:grid;grid-template-columns:minmax(340px,430px) 1fr;gap:0 14px;align-items:start}
- #pbody>.card:nth-child(3){grid-column:2;grid-row:1/span 2}
+ #pbody>.card:nth-child(4){grid-column:2;grid-row:1/span 3}
 }
 /* ===== Estética: herbario botánico (papel, tinta verde, terracota) ===== */
 body{font-family:Karla,system-ui,sans-serif}
@@ -80,13 +80,22 @@ nav button.on{color:#c4623a}
 #panel:not([hidden]){animation:rise .4s cubic-bezier(.2,.7,.2,1) both}
 @media(hover:hover){.pl{transition:transform .2s,box-shadow .2s}.pl:hover{transform:translateY(-3px);box-shadow:0 14px 22px -14px rgba(70,50,20,.5)}button.p:hover{transform:translateY(-1px)}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.rec-box{background:#fff3df;border:1px dashed #e0902f;border-radius:10px;padding:9px 12px;font-size:14px;margin-bottom:12px;cursor:pointer;line-height:1.4}
+.rec-box.venc{background:#fde8e6;border-color:#d9534f}
+.dia.rec{outline:2px dashed #e0902f;outline-offset:-2px;position:relative}.dia.rec.venc{outline-color:#d9534f}
+.dia.rec::after{content:"🔔";position:absolute;top:1px;right:2px;font-size:9px}.dia.rec.sel{outline:2px solid var(--tx)}
+.thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+.th{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:24px}
+.th img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover}
+.th small{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(0,0,0,.6));color:#fff;font:10px "DM Mono",ui-monospace,monospace;padding:12px 4px 3px;text-align:center}
+@media(min-width:600px){.thumbs{grid-template-columns:repeat(4,1fr)}}
 </style></head><body>
 <header><h1>🌱 Mis Plantas<small id="quien"></small></h1>
 <button id="b1" onclick="cargar()" hidden>⟳</button><button id="b3" onclick="cambiarOrigen()" hidden>⚙</button><button id="b2" onclick="salir()" hidden>Salir</button></header>
 <main id="app"></main>
 <nav id="nav" hidden><button id="t1" class="on" onclick="tab(1)">💧 Cuidados</button><button id="t2" onclick="tab(2)">📷 Fotos</button></nav>
 <div id="modal" onclick="this.style.display='none'"></div>
-<div id="panel" hidden><div id="phead"><button onclick="cerrarPlanta()">‹ Volver</button><span>Historial de la planta</span></div><div id="pbody"></div></div><div id="msg"></div>
+<div id="panel" hidden><div id="phead"><button onclick="cerrarPlanta()">‹ Volver</button><span>Historial de la planta</span></div><div id="pbody"></div><input type="file" id="pfile" accept="image/*" multiple hidden onchange="subirDePanel()"></div><div id="msg"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -96,6 +105,7 @@ const CONFIG = {
   CLIENT_ID: "430ca364-7d2d-457a-9a5a-9357f291a879",   // ID de aplicación (cliente) de Microsoft
   CARPETA: "Plantas",                        // carpeta de OneDrive que contiene el Excel
   EXCEL: "plantas.xlsx",                     // nombre del Excel
+  FERT_DIAS: 15,                             // días entre fertilizaciones (recordatorio)
   FOTOS: "fotos_plantas"                     // carpeta de fotos (dentro de CARPETA)
 };
 /* ====================================================== */
@@ -245,8 +255,9 @@ function pintar(){
   $("hist").innerHTML=S.histOrd.map((r,i)=>
     `<div class="row"><div style="flex:1"><b>${esc(r[1])}</b> <span class="mut">${esc(r[2])}</span><div class="mut">${esc(r[3])}</div></div><div class="mut" style="text-align:right">${r[0]}<br>${esc(r[4])}</div><button class="ic" onclick="borrarReg(${i})" title="Borrar registro">🗑</button></div>`).join("")||'<p class="mut">Sin registros.</p>';
   S.ord=[...S.fotos].sort((a,b)=>b[0].localeCompare(a[0]));
-  $("galeria").innerHTML=S.ord.map((r,i)=>
-    `<div class="row"><div><b>${esc(r[1])}</b><div class="mut">${r[0]} · ${esc(r[3])}</div><div class="mut">${esc(r[4])}</div></div><button class="ver" onclick="verFoto(${i})">🖼</button></div>`).join("")||'<p class="mut">Sin fotos.</p>';
+  $("gfil").innerHTML=GF?`<div class="mut" style="margin-bottom:8px">Mostrando fotos de <b>${esc(GF)}</b> <button class="s" style="width:auto;display:inline-block;margin:0 0 0 8px;padding:4px 12px" onclick="GF=null;pintar()">Ver todas</button></div>`:"";
+  $("galeria").innerHTML=S.ord.map((r,i)=>GF&&r[1]!==GF?"":
+    `<div class="row"><div><b class="lk" onclick="verPlanta(${S.plantas.indexOf(r[1])})">${esc(r[1])}</b><div class="mut">${r[0]} · ${esc(r[3])}</div><div class="mut">${esc(r[4])}</div></div><button class="ver" onclick="verFoto(${i})">🖼</button></div>`).join("")||'<p class="mut">Sin fotos.</p>';
   if(PV!==null)pintarPlanta();
 }
 let PV=null,ASC=true;
@@ -254,25 +265,66 @@ const ICONOS={"Riego":"💧","Fertilización":"🧪","Poda":"✂️","Trasplante
 function verPlanta(i){const p=S.plantas[i];if(p===undefined)return;PV=p;ASC=true;CAL=null;SD=null;pintarPlanta();$("panel").hidden=false;$("panel").scrollTop=0;document.body.style.overflow="hidden"}
 function cerrarPlanta(){PV=null;$("panel").hidden=true;document.body.style.overflow=""}
 function invertir(){ASC=!ASC;pintarPlanta()}
-let CAL=null,SD=null;
+let CAL=null,SD=null,GF=null;
+function recordatorio(p){
+  const f=ultimo(p,"Fertilización");if(!f)return null;
+  const d=new Date(f[0]+"T12:00:00");d.setDate(d.getDate()+CONFIG.FERT_DIAS);
+  const iso=d.toLocaleDateString("sv-SE");return {iso,dias:-dias(iso)};
+}
+function recBox(r){
+  if(!r)return `<div class="rec-box" style="cursor:default"><span class="mut">🔔 Aún no hay fertilizaciones. Al registrar la primera, aparecerá aquí el recordatorio (cada ${CONFIG.FERT_DIAS} días).</span></div>`;
+  const t=r.dias<0?`<b>⚠ Fertilización atrasada ${-r.dias} ${-r.dias===1?"día":"días"}</b><br><span class="mut">Tocaba el ${fmt(r.iso)}</span>`
+    :r.dias===0?`<b>🔔 Hoy toca fertilizar</b>`
+    :`<b>🔔 Próxima fertilización</b><br><span class="mut">${fmt(r.iso)} · en ${r.dias} ${r.dias===1?"día":"días"}</span>`;
+  return `<div class="rec-box${r.dias<0?" venc":""}" onclick="irRec('${r.iso}')">${t}</div>`;
+}
+function irRec(iso){const [y,m]=iso.split("-").map(Number);CAL={y,m:m-1};SD=null;pintarPlanta()}
+
 function calMes(d){CAL.m+=d;if(CAL.m<0){CAL.m=11;CAL.y--}else if(CAL.m>11){CAL.m=0;CAL.y++}SD=null;pintarPlanta()}
 function selDia(iso){SD=SD===iso?null:iso;pintarPlanta()}
 function calHTML(p){
   if(!CAL){const n=new Date();CAL={y:n.getFullYear(),m:n.getMonth()}}
   const pref=`${CAL.y}-${String(CAL.m+1).padStart(2,"0")}-`,rd=new Set(),fd=new Set();
   S.regs.forEach(r=>{if(r[1]===p&&r[0].startsWith(pref)){const d=+r[0].slice(8,10);if(r[2]==="Riego")rd.add(d);if(r[2]==="Fertilización")fd.add(d)}});
-  const vacios=(new Date(CAL.y,CAL.m,1).getDay()+6)%7,total=new Date(CAL.y,CAL.m+1,0).getDate(),h=hoy();
+  const rec=recordatorio(p),vacios=(new Date(CAL.y,CAL.m,1).getDay()+6)%7,total=new Date(CAL.y,CAL.m+1,0).getDate(),h=hoy();
   let c="LMXJVSD".split("").map(x=>`<div class="dw">${x}</div>`).join("")+"<div></div>".repeat(vacios);
   for(let k=1;k<=total;k++){const iso=pref+String(k).padStart(2,"0"),a=rd.has(k),b=fd.has(k);
-    c+=`<div class="dia ${a&&b?"ab":a?"a":b?"b":""}${iso===h?" hoy":""}${iso===SD?" sel":""}" onclick="selDia('${iso}')">${k}</div>`}
+    c+=`<div class="dia ${a&&b?"ab":a?"a":b?"b":""}${iso===h?" hoy":""}${iso===SD?" sel":""}${rec&&iso===rec.iso?" rec"+(rec.dias<0?" venc":""):""}" onclick="selDia('${iso}')">${k}</div>`}
   const det=SD?`<div class="mut" style="margin-bottom:4px">${fmt(SD)}</div>`+(S.regs.filter(r=>r[1]===p&&r[0]===SD).map(r=>
     `<div class="row"><div><b>${ICONOS[r[2]]||"•"} ${esc(r[2])}</b><div class="mut">${esc(r[3])}</div></div><div class="mut">${esc(r[4])}</div></div>`).join("")||'<p class="mut">Sin registros ese día.</p>')
     :'<p class="mut" style="margin:0">Toca un día para ver el detalle.</p>';
   const mes=new Date(CAL.y,CAL.m,1).toLocaleDateString("es",{month:"long",year:"numeric"});
-  return `<div class="card"><h2>Calendario</h2><div class="mes"><button class="ic" onclick="calMes(-1)">‹</button><b>${mes}</b><button class="ic" onclick="calMes(1)">›</button></div><div class="cal">${c}</div>
-  <div class="leg"><span><i style="background:#4a90d9"></i>Riego (${rd.size})</span><span><i style="background:#e0902f"></i>Fertilización (${fd.size})</span><span><i style="background:linear-gradient(135deg,#4a90d9 50%,#e0902f 50%)"></i>Ambos</span></div>
+  return `<div class="card"><h2>Calendario</h2>${recBox(rec)}<div class="mes"><button class="ic" onclick="calMes(-1)">‹</button><b>${mes}</b><button class="ic" onclick="calMes(1)">›</button></div><div class="cal">${c}</div>
+  <div class="leg"><span><i style="background:#4a90d9"></i>Riego (${rd.size})</span><span><i style="background:#e0902f"></i>Fertilización (${fd.size})</span><span><i style="background:linear-gradient(135deg,#4a90d9 50%,#e0902f 50%)"></i>Ambos</span><span><i style="border:2px dashed #e0902f;background:transparent"></i>Recordatorio</span></div>
   <div style="margin-top:10px">${det}</div></div>`;
 }
+const THUMB={},THUMBP=new Set();
+const minOk=f=>THUMB[f[2]]&&Date.now()-THUMB[f[2]].t<18e5;
+function ponerMin(){document.querySelectorAll(".th[data-f]").forEach(d=>{const m=THUMB[d.dataset.f];
+  if(m&&!d.querySelector("img")){d.insertAdjacentHTML("afterbegin",`<img src="${m.u}" alt="">`);const sp=d.querySelector("span");if(sp)sp.remove()}})}
+async function miniaturas(lista){
+  const falt=lista.filter(f=>!minOk(f)&&!THUMBP.has(f[2]));if(!falt.length)return;
+  falt.forEach(f=>THUMBP.add(f[2]));
+  try{
+    for(let i=0;i<falt.length;i+=20){
+      const lote=falt.slice(i,i+20);
+      const r=await(await gf("/$batch",{method:"POST",headers:J,body:JSON.stringify({requests:lote.map((f,k)=>
+        ({id:String(k),method:"GET",url:P(CONFIG.FOTOS+"/"+f[2])+"?$expand=thumbnails"}))})})).json();
+      (r.responses||[]).forEach(x=>{if(x.status===200){const b=x.body,u=b.thumbnails&&b.thumbnails[0]&&b.thumbnails[0].medium?b.thumbnails[0].medium.url:b["@microsoft.graph.downloadUrl"];
+        if(u)THUMB[lote[+x.id][2]]={u,t:Date.now()}}});
+    }
+    ponerMin();
+  }catch(e){}finally{falt.forEach(f=>THUMBP.delete(f[2]))}
+}
+function fotosHTML(p){
+  const fs=S.fotos.filter(r=>r[1]===p).sort((a,b)=>b[0].localeCompare(a[0])),vis=fs.slice(0,12);
+  setTimeout(()=>miniaturas(vis),0);
+  const th=vis.map(f=>`<div class="th" data-f="${esc(f[2])}" onclick="verFoto(${S.ord.indexOf(f)})" title="${esc(f[0])}">${minOk(f)?`<img src="${THUMB[f[2]].u}" alt="">`:"<span>🖼</span>"}<small>${f[0].slice(5)}</small></div>`).join("");
+  return `<div class="card"><h2>Fotos (${fs.length})</h2>${fs.length?`<div class="thumbs">${th}</div>`:'<p class="mut" style="margin:0 0 8px">Aún no hay fotos de esta planta.</p>'}
+  <button class="s" onclick="$('pfile').click()">📷 Agregar foto</button>
+  <button class="s" onclick="irAFotos()">Ver en la pestaña Fotos →</button></div>`;
+}
+function irAFotos(){const p=PV;cerrarPlanta();GF=p;tab(2);$("fplanta").value=p;pintar();window.scrollTo(0,0)}
 function pintarPlanta(){
   const p=PV;if(p===null)return;
   if(!S.plantas.includes(p))return cerrarPlanta();
@@ -283,7 +335,7 @@ function pintarPlanta(){
   $("pbody").innerHTML=`<div class="card"><h2>${esc(p)}</h2>${S.ubic[p]?`<p class="mut" style="margin:0 0 8px">${esc(S.ubic[p])}</p>`:""}
     <div class="mut">${n("Riego")} riegos · ${n("Fertilización")} fertilizaciones · ${n("Foto")} fotos · ${ev.length} eventos en total</div>
     <button class="s" onclick="invertir()">${ASC?"Orden: del más antiguo al más reciente ↓":"Orden: del más reciente al más antiguo ↑"}</button></div>
-    ${calHTML(p)}<div class="card"><h2>Historial</h2>${ev.map(e=>`<div class="row"><div style="flex:1"><b>${ICONOS[e.t]||"•"} ${esc(e.t)}</b><div class="mut">${esc(e.d)}</div></div>
+    ${calHTML(p)}${fotosHTML(p)}<div class="card"><h2>Historial</h2>${ev.map(e=>`<div class="row"><div style="flex:1"><b>${ICONOS[e.t]||"•"} ${esc(e.t)}</b><div class="mut">${esc(e.d)}</div></div>
     <div class="mut" style="text-align:right">${fmt(e.f)}<br>${esc(e.q)}</div>${e.foto?`<button class="ver" onclick="verFoto(${S.ord.indexOf(e.foto)})">🖼</button>`:""}</div>`).join("")||'<p class="mut">Esta planta aún no tiene registros.</p>'}</div>`;
 }
 function montar(){
@@ -303,7 +355,7 @@ function montar(){
    <label>Nota (opcional)</label><input id="fnota">
    <label>Fotos</label><input type="file" id="archivos" accept="image/*" multiple>
    <button class="p" onclick="subir()">📷 Subir fotos</button></div>
-  <div class="card"><h2>Galería</h2><p class="mut">Toca 🖼 para ver la foto.</p><div id="galeria"></div></div></section>`;
+  <div class="card"><h2>Galería</h2><p class="mut">Toca 🖼 para ver la foto.</p><div id="gfil"></div><div id="galeria"></div></div></section>`;
 }
 function tab(n){$("v1").hidden=n!==1;$("v2").hidden=n!==2;$("t1").className=n===1?"on":"";$("t2").className=n===2?"on":""}
 
@@ -363,11 +415,8 @@ async function subirArchivo(nombre,blob){
       body:JSON.stringify({name:CONFIG.FOTOS,folder:{},"@microsoft.graph.conflictBehavior":"fail"})});
     await gf(url,o)}
 }
-function subir(){
-  const p=$("fplanta").value,fs=[...$("archivos").files];
-  if(!p)return aviso("Elige la planta",true);if(!fs.length)return aviso("Elige al menos una foto",true);
-  const nota=$("fnota").value.trim(),fecha=hoy();
-  $("archivos").value="";$("fnota").value="";
+function subirFotos(p,fs,nota){
+  const fecha=hoy();
   enSegundoPlano(`Subiendo ${fs.length} foto(s)…`,async()=>{
     const nuevas=await Promise.all(fs.map(async f=>{
       const b=await reducir(f),nombre=`${fecha}_${limpio(p)}_${Math.random().toString(16).slice(2,8)}.jpg`;
@@ -376,6 +425,12 @@ function subir(){
     return `${nuevas.length} foto(s) subida(s) ✓`;
   });
 }
+function subir(){
+  const p=$("fplanta").value,fs=[...$("archivos").files];
+  if(!p)return aviso("Elige la planta",true);if(!fs.length)return aviso("Elige al menos una foto",true);
+  const nota=$("fnota").value.trim();$("archivos").value="";$("fnota").value="";subirFotos(p,fs,nota);
+}
+function subirDePanel(){const fs=[...$("pfile").files];$("pfile").value="";if(PV!==null&&fs.length)subirFotos(PV,fs,"")}
 function verFoto(i){
   const f=S.ord[i];
   run(async()=>{
