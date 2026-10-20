@@ -11,13 +11,14 @@
 body{margin:0;font:16px -apple-system,system-ui,sans-serif;background:var(--bg);color:var(--tx);padding-bottom:calc(72px + env(safe-area-inset-bottom))}
 body::before{content:"";position:fixed;top:0;left:0;right:0;bottom:0;z-index:-1;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-40 -40 280 300'%3E%3Cg transform='rotate(25 100 110)'%3E%3Cpath d='M100 178C85 200 40 205 20 170C-2 130 15 60 65 25C80 15 92 8 100 4C108 8 120 15 135 25C185 60 202 130 180 170C160 205 115 200 100 178Z' fill='%23cfe5c3'/%3E%3Cpath d='M100 178L100 12M100 160L40 140M100 125L35 105M100 90L40 75M100 160L160 140M100 125L165 105M100 90L160 75' stroke='%23b4d3a6' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M100 178C100 195 98 210 94 222' stroke='%23b4d3a6' stroke-width='5' fill='none' stroke-linecap='round'/%3E%3Cg stroke='%23f6efe0' stroke-width='8' stroke-linecap='round' fill='none'%3E%3Cpath d='M2 152L55 128M0 116L52 100M10 80L58 72M40 42L72 52'/%3E%3Cpath d='M198 152L145 128M200 116L148 100M190 80L142 72M160 42L128 52'/%3E%3C/g%3E%3Cg fill='%23f6efe0'%3E%3Cellipse cx='72' cy='150' rx='5' ry='9'/%3E%3Cellipse cx='128' cy='150' rx='5' ry='9'/%3E%3Cellipse cx='80' cy='112' rx='4' ry='7'/%3E%3Cellipse cx='120' cy='112' rx='4' ry='7'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-40 -40 280 300'%3E%3Cg transform='rotate(-35 100 110)'%3E%3Cpath d='M100 178C85 200 40 205 20 170C-2 130 15 60 65 25C80 15 92 8 100 4C108 8 120 15 135 25C185 60 202 130 180 170C160 205 115 200 100 178Z' fill='%23cfe5c3'/%3E%3Cpath d='M100 178L100 12M100 160L40 140M100 125L35 105M100 90L40 75M100 160L160 140M100 125L165 105M100 90L160 75' stroke='%23b4d3a6' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M100 178C100 195 98 210 94 222' stroke='%23b4d3a6' stroke-width='5' fill='none' stroke-linecap='round'/%3E%3Cg stroke='%23f6efe0' stroke-width='8' stroke-linecap='round' fill='none'%3E%3Cpath d='M2 152L55 128M0 116L52 100M10 80L58 72M40 42L72 52'/%3E%3Cpath d='M198 152L145 128M200 116L148 100M190 80L142 72M160 42L128 52'/%3E%3C/g%3E%3Cg fill='%23f6efe0'%3E%3Cellipse cx='72' cy='150' rx='5' ry='9'/%3E%3Cellipse cx='128' cy='150' rx='5' ry='9'/%3E%3Cellipse cx='80' cy='112' rx='4' ry='7'/%3E%3Cellipse cx='120' cy='112' rx='4' ry='7'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right -70px top 70px,left -80px bottom 60px;background-size:250px,220px}
 #panel{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:15;overflow-y:auto;-webkit-overflow-scrolling:touch}#phead{position:sticky;top:0;z-index:2;background:#2f7d4f;color:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;display:flex;align-items:center;gap:12px;font-weight:600}#phead button{background:rgba(255,255,255,.2);color:#fff;border:0;border-radius:10px;padding:8px 12px;font-size:15px}#pbody{max-width:640px;margin:auto;padding:12px 14px calc(28px + env(safe-area-inset-bottom))}.lk{display:inline-block;color:var(--ac);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
+#estado{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;margin:0 -14px;padding:2px 14px 4px;scroll-padding:0 14px}#estado::-webkit-scrollbar{display:none}#estado .pl:only-child{flex-basis:100%}#dots{display:flex;justify-content:center;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:var(--mut)}.pt{width:7px;height:7px;border-radius:50%;background:var(--bd)}.pt.on{background:var(--ac)}.mes{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}.mes b{text-transform:capitalize}.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}.cal .dw{font-size:12px;color:var(--mut);padding:4px 0}.dia{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:10px;font-size:14px;background:var(--bg);cursor:pointer}.dia.a{background:#4a90d9;color:#fff;font-weight:600}.dia.b{background:#e0902f;color:#fff;font-weight:600}.dia.ab{background:linear-gradient(135deg,#4a90d9 50%,#e0902f 50%);color:#fff;font-weight:600}.dia.hoy{box-shadow:0 0 0 2px var(--ac)}.dia.sel{outline:2px solid var(--tx);outline-offset:1px}.leg{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:13px;color:var(--mut)}.leg i{display:inline-block;width:12px;height:12px;border-radius:4px;margin-right:5px;vertical-align:-1px}
 header{background:#2f7d4f;color:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:5}
 header h1{font-size:19px;margin:0;flex:1}header small{display:block;font-weight:400;font-size:12px;opacity:.85}
 header button{background:rgba(255,255,255,.2);color:#fff;border:0;border-radius:10px;padding:8px 11px;font-size:15px}
 main{padding:12px 14px;max-width:640px;margin:auto}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
 .card h2{font-size:13px;color:var(--ac);margin:0 0 10px;text-transform:uppercase;letter-spacing:.05em}
-.pl{padding:10px 12px;border-radius:10px;margin-bottom:8px;background:var(--bg)}
+.pl{flex:0 0 84%;scroll-snap-align:center;padding:12px 14px;border-radius:14px;background:var(--bg);border:1px solid var(--bd);cursor:pointer}
 .pl.hoy{background:var(--ok)}.pl .top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}.pl .top b{display:block}.pl .l{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px solid var(--bd);font-size:14px}.ic{background:none;border:0;font-size:19px;padding:2px 6px}.mut{color:var(--mut);font-size:13px}
 label{display:block;font-size:13px;color:var(--mut);margin:9px 0 3px}
 input,select{width:100%;padding:11px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font-size:16px}
@@ -171,11 +172,19 @@ function linea(ic,et,u){
 function llenar(id){const s=$(id),v=s.value;
   s.innerHTML=S.plantas.length?S.plantas.map(p=>`<option>${esc(p)}</option>`).join(""):'<option value="">(agrega una planta)</option>';
   if(S.plantas.includes(v))s.value=v}
+function pintarPuntos(){
+  const est=$("estado"),n=S.plantas.length,w=est.firstElementChild?est.firstElementChild.offsetWidth+10:1;
+  const k=Math.min(n-1,Math.max(0,Math.round(est.scrollLeft/w)));
+  $("dots").innerHTML=n<2?"":n>10?`${k+1} / ${n}`:S.plantas.map((_,i)=>`<span class="pt${i===k?" on":""}"></span>`).join("");
+}
 function pintar(){
   llenar("planta");llenar("fplanta");
-  $("estado").innerHTML=S.plantas.map((p,i)=>{
+  const est=$("estado"),sl=est.scrollLeft;
+  if(!est._sc){est._sc=1;est.addEventListener("scroll",pintarPuntos,{passive:true})}
+  est.innerHTML=S.plantas.map((p,i)=>{
     const r=ultimo(p,"Riego"),f=ultimo(p,"Fertilización"),u=S.ubic[p];
-    return `<div class="pl ${r&&r[0]===hoy()?"hoy":""}"><div class="top"><div><div><b class="lk" onclick="verPlanta(${i})">${esc(p)}</b></div>${u?`<span class="mut">${esc(u)}</span>`:""}</div><button class="ic" onclick="editarPlanta(${i})" title="Editar planta">✏️</button></div>${linea("💧","Último riego",r)}${linea("🧪","Último fertilizante",f)}</div>`}).join("")||'<p class="mut">Aún no hay plantas.</p>';
+    return `<div class="pl ${r&&r[0]===hoy()?"hoy":""}" onclick="verPlanta(${i})"><div class="top"><div><b class="lk">${esc(p)}</b>${u?`<span class="mut" style="display:block">${esc(u)}</span>`:""}</div><button class="ic" onclick="event.stopPropagation();editarPlanta(${i})" title="Editar planta">✏️</button></div>${linea("💧","Último riego",r)}${linea("🧪","Último fertilizante",f)}<div class="mut" style="text-align:center;margin-top:6px">Toca para ver el calendario</div></div>`}).join("")||'<p class="mut">Aún no hay plantas.</p>';
+  est.scrollLeft=sl;pintarPuntos();
   S.histOrd=[...S.regs].reverse().sort((a,b)=>b[0].localeCompare(a[0])).slice(0,30);
   $("hist").innerHTML=S.histOrd.map((r,i)=>
     `<div class="row"><div style="flex:1"><b>${esc(r[1])}</b> <span class="mut">${esc(r[2])}</span><div class="mut">${esc(r[3])}</div></div><div class="mut" style="text-align:right">${r[0]}<br>${esc(r[4])}</div><button class="ic" onclick="borrarReg(${i})" title="Borrar registro">🗑</button></div>`).join("")||'<p class="mut">Sin registros.</p>';
@@ -186,9 +195,28 @@ function pintar(){
 }
 let PV=null,ASC=true;
 const ICONOS={"Riego":"💧","Fertilización":"🧪","Poda":"✂️","Trasplante":"🪴","Plaga/tratamiento":"🐛","Observación":"📝","Foto":"📷"};
-function verPlanta(i){const p=S.plantas[i];if(p===undefined)return;PV=p;ASC=true;pintarPlanta();$("panel").hidden=false;$("panel").scrollTop=0;document.body.style.overflow="hidden"}
+function verPlanta(i){const p=S.plantas[i];if(p===undefined)return;PV=p;ASC=true;CAL=null;SD=null;pintarPlanta();$("panel").hidden=false;$("panel").scrollTop=0;document.body.style.overflow="hidden"}
 function cerrarPlanta(){PV=null;$("panel").hidden=true;document.body.style.overflow=""}
 function invertir(){ASC=!ASC;pintarPlanta()}
+let CAL=null,SD=null;
+function calMes(d){CAL.m+=d;if(CAL.m<0){CAL.m=11;CAL.y--}else if(CAL.m>11){CAL.m=0;CAL.y++}SD=null;pintarPlanta()}
+function selDia(iso){SD=SD===iso?null:iso;pintarPlanta()}
+function calHTML(p){
+  if(!CAL){const n=new Date();CAL={y:n.getFullYear(),m:n.getMonth()}}
+  const pref=`${CAL.y}-${String(CAL.m+1).padStart(2,"0")}-`,rd=new Set(),fd=new Set();
+  S.regs.forEach(r=>{if(r[1]===p&&r[0].startsWith(pref)){const d=+r[0].slice(8,10);if(r[2]==="Riego")rd.add(d);if(r[2]==="Fertilización")fd.add(d)}});
+  const vacios=(new Date(CAL.y,CAL.m,1).getDay()+6)%7,total=new Date(CAL.y,CAL.m+1,0).getDate(),h=hoy();
+  let c="LMXJVSD".split("").map(x=>`<div class="dw">${x}</div>`).join("")+"<div></div>".repeat(vacios);
+  for(let k=1;k<=total;k++){const iso=pref+String(k).padStart(2,"0"),a=rd.has(k),b=fd.has(k);
+    c+=`<div class="dia ${a&&b?"ab":a?"a":b?"b":""}${iso===h?" hoy":""}${iso===SD?" sel":""}" onclick="selDia('${iso}')">${k}</div>`}
+  const det=SD?`<div class="mut" style="margin-bottom:4px">${fmt(SD)}</div>`+(S.regs.filter(r=>r[1]===p&&r[0]===SD).map(r=>
+    `<div class="row"><div><b>${ICONOS[r[2]]||"•"} ${esc(r[2])}</b><div class="mut">${esc(r[3])}</div></div><div class="mut">${esc(r[4])}</div></div>`).join("")||'<p class="mut">Sin registros ese día.</p>')
+    :'<p class="mut" style="margin:0">Toca un día para ver el detalle.</p>';
+  const mes=new Date(CAL.y,CAL.m,1).toLocaleDateString("es",{month:"long",year:"numeric"});
+  return `<div class="card"><h2>Calendario</h2><div class="mes"><button class="ic" onclick="calMes(-1)">‹</button><b>${mes}</b><button class="ic" onclick="calMes(1)">›</button></div><div class="cal">${c}</div>
+  <div class="leg"><span><i style="background:#4a90d9"></i>Riego (${rd.size})</span><span><i style="background:#e0902f"></i>Fertilización (${fd.size})</span><span><i style="background:linear-gradient(135deg,#4a90d9 50%,#e0902f 50%)"></i>Ambos</span></div>
+  <div style="margin-top:10px">${det}</div></div>`;
+}
 function pintarPlanta(){
   const p=PV;if(p===null)return;
   if(!S.plantas.includes(p))return cerrarPlanta();
@@ -199,12 +227,12 @@ function pintarPlanta(){
   $("pbody").innerHTML=`<div class="card"><h2>${esc(p)}</h2>${S.ubic[p]?`<p class="mut" style="margin:0 0 8px">${esc(S.ubic[p])}</p>`:""}
     <div class="mut">${n("Riego")} riegos · ${n("Fertilización")} fertilizaciones · ${n("Foto")} fotos · ${ev.length} eventos en total</div>
     <button class="s" onclick="invertir()">${ASC?"Orden: del más antiguo al más reciente ↓":"Orden: del más reciente al más antiguo ↑"}</button></div>
-    <div class="card"><h2>Historial</h2>${ev.map(e=>`<div class="row"><div style="flex:1"><b>${ICONOS[e.t]||"•"} ${esc(e.t)}</b><div class="mut">${esc(e.d)}</div></div>
+    ${calHTML(p)}<div class="card"><h2>Historial</h2>${ev.map(e=>`<div class="row"><div style="flex:1"><b>${ICONOS[e.t]||"•"} ${esc(e.t)}</b><div class="mut">${esc(e.d)}</div></div>
     <div class="mut" style="text-align:right">${fmt(e.f)}<br>${esc(e.q)}</div>${e.foto?`<button class="ver" onclick="verFoto(${S.ord.indexOf(e.foto)})">🖼</button>`:""}</div>`).join("")||'<p class="mut">Esta planta aún no tiene registros.</p>'}</div>`;
 }
 function montar(){
   $("app").innerHTML=`<section id="v1">
-  <div class="card"><h2>Estado de las plantas</h2><div id="estado"></div></div>
+  <div class="card"><h2>Estado de las plantas</h2><div id="estado"></div><div id="dots"></div></div>
   <div class="card"><h2>Nuevo registro</h2>
    <label>Planta</label><select id="planta"></select>
    <label>Tipo de cuidado</label><select id="tipo">${TIPOS.map(t=>`<option>${t}</option>`).join("")}</select>
